@@ -1,0 +1,146 @@
+/*
+ * VOIT DS implementation tokens.
+ * Source: Figma file kPyvwjHp6ZtnlRk6gINzpN.
+ * Names mirror the Figma variable collections so code and design remain traceable.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Theme / Light */
+  --voit-background-base: #ffffff;
+  --voit-background-1: #fafafa;
+  --voit-background-2: #e5e5e5;
+  --voit-background-3: #cccccc;
+  --voit-background-inverse: #000000;
+  --voit-background-primary: #171717;
+  --voit-background-accent: #004cff;
+  --voit-background-accent-light: #99b7ff;
+
+  --voit-label-primary: rgba(0, 0, 0, 0.9);
+  --voit-label-secondary: rgba(0, 0, 0, 0.5);
+  --voit-label-tertiary: rgba(0, 0, 0, 0.3);
+  --voit-label-disabled: rgba(0, 0, 0, 0.2);
+  --voit-label-inverse: rgba(255, 255, 255, 0.9);
+  --voit-label-accent: #004cff;
+  --voit-label-error: #ff3b30;
+
+  --voit-border-1: rgba(0, 0, 0, 0.12);
+  --voit-border-2: rgba(0, 0, 0, 0.2);
+  --voit-border-3: rgba(0, 0, 0, 0.3);
+  --voit-border-primary: rgba(0, 0, 0, 0.9);
+  --voit-border-disabled: rgba(0, 0, 0, 0.04);
+  --voit-border-accent: #004cff;
+
+  --voit-button-primary-default: #171717;
+  --voit-button-primary-hover: #2e2d2d;
+  --voit-button-primary-active: #171717;
+  --voit-focus: #004cff;
+  --voit-success: #2a9f47;
+  --voit-warning: #e5b800;
+  --voit-error: #ff3b30;
+
+  /* Spacing */
+  --voit-space-0: 0;
+  --voit-space-xs: 4px;
+  --voit-space-sm: 8px;
+  --voit-space-md: 12px;
+  --voit-space-lg: 16px;
+  --voit-space-xl: 20px;
+  --voit-space-2xl: 24px;
+  --voit-space-huge: 32px;
+  --voit-space-massive: 40px;
+  --voit-space-gigantic: 48px;
+  --voit-space-vast: 96px;
+
+  /* Corners */
+  --voit-corner-xs: 4px;
+  --voit-corner-sm: 8px;
+  --voit-corner-md: 12px;
+  --voit-corner-lg: 16px;
+  --voit-corner-xl: 20px;
+  --voit-corner-2xl: 24px;
+  --voit-corner-huge: 32px;
+  --voit-corner-full: 224px;
+
+  /* Typography: Urbanist is the ScholarPath brand override on the VOIT type scale. */
+  --voit-font-family: var(--font-urbanist), Urbanist, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --voit-font-note-size: 10px;
+  --voit-font-note-line: 13px;
+  --voit-font-subheadline-size: 11px;
+  --voit-font-subheadline-line: 15px;
+  --voit-font-caption-size: 12px;
+  --voit-font-caption-line: 16px;
+  --voit-font-body-sm-size: 14px;
+  --voit-font-body-sm-line: 18px;
+  --voit-font-body-md-size: 16px;
+  --voit-font-body-md-line: 21px;
+  --voit-font-body-lg-size: 18px;
+  --voit-font-body-lg-line: 23px;
+  --voit-font-title-3-size: 20px;
+  --voit-font-title-3-line: 25px;
+  --voit-font-title-2-size: 22px;
+  --voit-font-title-2-line: 28px;
+  --voit-font-title-1-size: 28px;
+  --voit-font-title-1-line: 34px;
+  --voit-font-h3-size: 32px;
+  --voit-font-h3-line: 40px;
+  --voit-font-h2-size: 36px;
+  --voit-font-h2-line: 43px;
+  --voit-font-h1-size: 48px;
+  --voit-font-h1-line: 58px;
+  --voit-font-display-3-size: 56px;
+  --voit-font-display-3-line: 66px;
+  --voit-font-display-2-size: 80px;
+  --voit-font-display-2-line: 94px;
+  --voit-font-display-1-size: 96px;
+  --voit-font-display-1-line: 106px;
+
+  /* Responsive collection */
+  --voit-content-width: 1232px;
+  --voit-page-margin: 126px;
+
+  /* Component foundations */
+  --voit-field-background: rgba(255, 255, 255, 0.7);
+  --voit-field-height-md: 42px;
+  --voit-button-height-xl: 48px;
+  --voit-control-radio-md: 20px;
+  --voit-background-blur-lg: 32px;
+}
+
+@media (max-width: 960px) {
+  :root {
+    --voit-content-width: 834px;
+    --voit-page-margin: 20px;
+  }
+}
+
+@media (max-width: 680px) {
+  :root {
+    --voit-content-width: 390px;
+    --voit-page-margin: 16px;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] {
+    color-scheme: dark;
+    --voit-background-base: #000000;
+    --voit-background-1: #171717;
+    --voit-background-2: #2e2d2d;
+    --voit-background-3: #4d4d4d;
+    --voit-background-inverse: #ffffff;
+    --voit-background-primary: #fafafa;
+    --voit-label-primary: rgba(255, 255, 255, 0.9);
+    --voit-label-secondary: rgba(255, 255, 255, 0.5);
+    --voit-label-tertiary: rgba(255, 255, 255, 0.3);
+    --voit-label-disabled: rgba(255, 255, 255, 0.2);
+    --voit-label-inverse: rgba(0, 0, 0, 0.85);
+    --voit-label-accent: #1a5eff;
+    --voit-border-1: rgba(255, 255, 255, 0.2);
+    --voit-border-2: rgba(255, 255, 255, 0.3);
+    --voit-border-3: rgba(255, 255, 255, 0.5);
+    --voit-border-primary: rgba(255, 255, 255, 0.9);
+    --voit-border-accent: #1a5eff;
+  }
+}
