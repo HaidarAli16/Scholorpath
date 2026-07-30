@@ -6,4 +6,5 @@ out
 .DS_Store
 *.tsbuildinfo
 .doc-staging
-
+.codex-sheet-work
+*.inspect.ndjson

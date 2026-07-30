@@ -145,31 +145,72 @@ function PageIntro({ eyebrow, title, description, action }: { eyebrow: string; t
 }
 
 function Today() {
+  const [guideView, setGuideView] = useState<"why" | "missing" | "next">("why");
+
+  const guideContent = {
+    why: {
+      eyebrow: "Why this is first",
+      title: "One document can unblock two routes",
+      body: "Leeds and Saarland both require module-level mathematics evidence. Your transcript names the modules but does not show their content.",
+    },
+    missing: {
+      eyebrow: "Evidence missing",
+      title: "A syllabus or official module description",
+      body: "Upload an official course outline showing calculus, linear algebra, statistics, or discrete mathematics. ScholarPath will attach it to both requirement checks.",
+    },
+    next: {
+      eyebrow: "After you upload",
+      title: "We re-check the affected requirements",
+      body: "The rules engine will compare the document against both programme requirements and show Confirmed, Still conditional, or Needs review—never a hidden probability.",
+    },
+  }[guideView];
+
   return (
     <>
-      <PageIntro eyebrow="Saturday, 25 July" title="Good morning, Haidar." description="Your plan is moving. One verified academic check is blocking two applications." action={<Link className="product-button product-button--secondary" href="/profile"><UserRound size={16} /> Complete profile</Link>} />
-      <section className="next-action-card">
-        <span className="next-action-card__icon"><Target size={21} /></span>
-        <div><small>Next best action · about 12 minutes</small><h2>Verify your mathematics module coverage</h2><p>Leeds and Saarland both need evidence from your transcript or official course descriptions.</p></div>
-        <Link href="/applications" className="product-button product-button--light">Open requirement <ArrowRight size={15} /></Link>
-      </section>
-      <div className="metric-strip">
-        <Metric label="Active applications" value="3" note="2 need attention" tone="blue" />
-        <Metric label="Next deadline" value="6 Oct" note="Chevening · 11:00 UTC" tone="amber" />
-        <Metric label="Documents ready" value="7/11" note="1 needs review" tone="green" />
-        <Metric label="Funding gap" value="Unresolved" note="Build scenarios" tone="slate" />
-      </div>
+      <PageIntro eyebrow="Thursday, 30 July" title="Here is what moves your plan forward." description="ScholarPath has checked your deadlines, requirements, evidence, and funding dependencies. One action has the highest impact today." action={<Link className="product-button product-button--secondary" href="/profile"><UserRound size={18} /> Profile evidence: 72%</Link>} />
+      <div className="today-layout">
+        <div className="today-main">
+          <section className="next-action-card">
+            <span className="next-action-card__icon"><Target size={24} /></span>
+            <div><small>Highest-impact action · about 12 minutes</small><h2>Verify your mathematics module coverage</h2><p>Upload one official document to resolve the same evidence gap across two active applications.</p><span className="next-action-card__impact"><Sparkles size={14} /> Affects Leeds and Saarland</span></div>
+            <Link href="/applications" className="product-button product-button--light">Resolve evidence <ArrowRight size={17} /></Link>
+          </section>
+
+          <div className="path-pulse" aria-label="Pathway changes since your last visit">
+            <div><span className="path-pulse__icon path-pulse__icon--amber"><AlertCircle size={18} /></span><p><strong>2 routes need evidence</strong><small>The same academic gap affects both.</small></p></div>
+            <div><span className="path-pulse__icon path-pulse__icon--green"><ShieldCheck size={18} /></span><p><strong>1 source reverified</strong><small>Chevening timeline is current.</small></p></div>
+            <div><span className="path-pulse__icon path-pulse__icon--blue"><Sparkles size={18} /></span><p><strong>3 new routes</strong><small>Added after your profile update.</small></p></div>
+          </div>
       <div className="dashboard-grid">
         <section className="panel">
-          <PanelHead title="Needs your attention" meta="4 actions" />
-          <div className="task-list-ui">{tasks.map((task) => <TaskRow key={task.title} task={task} />)}</div>
-          <Link className="panel-link" href="/workspace">View all tasks <ArrowRight size={14} /></Link>
+          <PanelHead title="Your next actions" meta="Ordered by impact and deadline" />
+          <div className="task-list-ui">{tasks.slice(0, 3).map((task) => <TaskRow key={task.title} task={task} />)}</div>
+          <Link className="panel-link" href="/workspace">Open your full plan <ArrowRight size={16} /></Link>
         </section>
-        <section className="panel">
-          <PanelHead title="Applications" meta="3 active" />
-          <div className="mini-application-list">{applications.map((item) => <MiniApplication key={item.id} item={item} />)}</div>
-          <Link className="panel-link" href="/applications">Open applications <ArrowRight size={14} /></Link>
-        </section>
+      </div>
+        </div>
+
+        <aside className="path-guide" aria-live="polite">
+          <div className="path-guide__head"><span><Sparkles size={17} /> Path Guide</span><em>Using 8 profile facts</em></div>
+          <div className="path-guide__status"><i /><span><strong>Evidence-backed guidance</strong><small>Rules checked 30 Jul 2026</small></span></div>
+          <div className="path-guide__content" key={guideView}>
+            <span className="product-eyebrow">{guideContent.eyebrow}</span>
+            <h2>{guideContent.title}</h2>
+            <p>{guideContent.body}</p>
+          </div>
+          <div className="path-guide__facts">
+            <span>Data used</span>
+            <button>BS Computer Science <Check size={13} /></button>
+            <button>Transcript uploaded <Check size={13} /></button>
+            <button className="is-missing">Module descriptions missing <AlertCircle size={13} /></button>
+          </div>
+          <div className="path-guide__actions" role="tablist" aria-label="Explain this guidance">
+            <button className={guideView === "why" ? "active" : ""} onClick={() => setGuideView("why")}>Why first?</button>
+            <button className={guideView === "missing" ? "active" : ""} onClick={() => setGuideView("missing")}>What’s missing?</button>
+            <button className={guideView === "next" ? "active" : ""} onClick={() => setGuideView("next")}>What happens next?</button>
+          </div>
+          <Link href="/applications" className="path-guide__source"><Database size={15} /> View rules and official sources <ArrowRight size={15} /></Link>
+        </aside>
       </div>
       <section className="section-block">
         <div className="section-heading"><div><span className="product-eyebrow">New verified routes</span><h2>Worth reviewing this week</h2></div><Link href="/discover">Discover all <ArrowRight size={14} /></Link></div>
@@ -524,4 +565,3 @@ function pageTitle(module: string) {
   const titles: Record<string, string> = { today: "Today", discover: "Discover", portfolio: "Portfolio", applications: "Applications", workspace: "Tasks", documents: "Documents", writing: "Writing", funding: "Funding", offers: "Offers", profile: "Profile & evidence", notifications: "Notifications", help: "Help & corrections", operations: "Research operations", admin: "Administration" };
   return titles[module] ?? "ScholarPath";
 }
-
