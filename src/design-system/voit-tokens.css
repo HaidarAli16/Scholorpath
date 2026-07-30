@@ -32,9 +32,9 @@
   --voit-border-disabled: rgba(0, 0, 0, 0.04);
   --voit-border-accent: #004cff;
 
-  --voit-button-primary-default: #171717;
-  --voit-button-primary-hover: #2e2d2d;
-  --voit-button-primary-active: #171717;
+  --voit-button-primary-default: #155eef;
+  --voit-button-primary-hover: #004eeb;
+  --voit-button-primary-active: #0040c1;
   --voit-focus: #004cff;
   --voit-success: #2a9f47;
   --voit-warning: #e5b800;
@@ -63,38 +63,38 @@
   --voit-corner-huge: 32px;
   --voit-corner-full: 224px;
 
-  /* Typography: Urbanist is the ScholarPath brand override on the VOIT type scale. */
-  --voit-font-family: var(--font-urbanist), Urbanist, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --voit-font-note-size: 10px;
-  --voit-font-note-line: 13px;
-  --voit-font-subheadline-size: 11px;
-  --voit-font-subheadline-line: 15px;
+  /* Typography: Untitled UI uses Inter and a 12/14/16/18/20 body scale. */
+  --voit-font-family: var(--font-inter), Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --voit-font-note-size: 12px;
+  --voit-font-note-line: 18px;
+  --voit-font-subheadline-size: 12px;
+  --voit-font-subheadline-line: 18px;
   --voit-font-caption-size: 12px;
-  --voit-font-caption-line: 16px;
+  --voit-font-caption-line: 18px;
   --voit-font-body-sm-size: 14px;
-  --voit-font-body-sm-line: 18px;
+  --voit-font-body-sm-line: 20px;
   --voit-font-body-md-size: 16px;
-  --voit-font-body-md-line: 21px;
+  --voit-font-body-md-line: 24px;
   --voit-font-body-lg-size: 18px;
-  --voit-font-body-lg-line: 23px;
+  --voit-font-body-lg-line: 28px;
   --voit-font-title-3-size: 20px;
-  --voit-font-title-3-line: 25px;
-  --voit-font-title-2-size: 22px;
-  --voit-font-title-2-line: 28px;
-  --voit-font-title-1-size: 28px;
-  --voit-font-title-1-line: 34px;
-  --voit-font-h3-size: 32px;
-  --voit-font-h3-line: 40px;
+  --voit-font-title-3-line: 30px;
+  --voit-font-title-2-size: 24px;
+  --voit-font-title-2-line: 32px;
+  --voit-font-title-1-size: 30px;
+  --voit-font-title-1-line: 38px;
+  --voit-font-h3-size: 30px;
+  --voit-font-h3-line: 38px;
   --voit-font-h2-size: 36px;
-  --voit-font-h2-line: 43px;
+  --voit-font-h2-line: 44px;
   --voit-font-h1-size: 48px;
-  --voit-font-h1-line: 58px;
-  --voit-font-display-3-size: 56px;
-  --voit-font-display-3-line: 66px;
-  --voit-font-display-2-size: 80px;
-  --voit-font-display-2-line: 94px;
-  --voit-font-display-1-size: 96px;
-  --voit-font-display-1-line: 106px;
+  --voit-font-h1-line: 60px;
+  --voit-font-display-3-size: 60px;
+  --voit-font-display-3-line: 72px;
+  --voit-font-display-2-size: 72px;
+  --voit-font-display-2-line: 90px;
+  --voit-font-display-1-size: 72px;
+  --voit-font-display-1-line: 90px;
 
   /* Responsive collection */
   --voit-content-width: 1232px;

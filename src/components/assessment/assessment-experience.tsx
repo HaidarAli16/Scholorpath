@@ -47,12 +47,52 @@ import {
 type Mode = "welcome" | "assessment" | "analyzing" | "workspace";
 type Draft = Partial<AssessmentInput>;
 
-const steps = [
+const sections = [
   { label: "About you", icon: UserRound },
   { label: "Academic record", icon: GraduationCap },
   { label: "Goal & funding", icon: Target },
   { label: "Evidence", icon: FileCheck2 },
   { label: "Review", icon: Sparkles },
+] as const;
+
+const pages = [
+  { section: 0, label: "Your name" },
+  { section: 0, label: "Citizenship" },
+  { section: 0, label: "Residence" },
+  { section: 1, label: "Qualification" },
+  { section: 1, label: "Academic context" },
+  { section: 1, label: "Academic result" },
+  { section: 1, label: "Degree status" },
+  { section: 2, label: "Target intake" },
+  { section: 2, label: "Destination" },
+  { section: 2, label: "Funding need" },
+  { section: 2, label: "Available budget" },
+  { section: 3, label: "English readiness" },
+  { section: 3, label: "Experience" },
+  { section: 3, label: "Research evidence" },
+  { section: 3, label: "Weekly capacity" },
+  { section: 3, label: "Biggest blocker" },
+  { section: 4, label: "Review" },
+] as const;
+
+const pageFeedback = [
+  "A name is all we need to make this feel like your plan.",
+  "This opens the qualification and scholarship rules relevant to you.",
+  "Residence stays separate from citizenship so the guidance remains accurate.",
+  "Good—now we know which academic framework to compare.",
+  "This keeps recommendations relevant to your actual study background.",
+  "Your original result stays visible; any conversion is only a planning aid.",
+  "Degree timing helps us identify routes you can pursue now.",
+  "Your timeline now has a clear anchor.",
+  "Staying flexible can reveal stronger-fit routes you may not have considered.",
+  "Funding need is evaluated separately from admission fit.",
+  "This helps filter out routes that are attractive but not financially realistic.",
+  "A test gap becomes a scheduled action—not a judgment on your potential.",
+  "Experience is one signal among many, never the whole profile.",
+  "No evidence yet is a valid starting point; we will show what to build first.",
+  "Your action plan will now fit the time you actually have.",
+  "One last review—then your first explainable pathway is ready.",
+  "Everything below remains editable, conditional and transparent.",
 ] as const;
 
 const initialDraft: Draft = {
@@ -256,6 +296,33 @@ function StepHeading({
   );
 }
 
+function buildCoachInsight(page: number, draft: Draft) {
+  if (page === 1 && draft.nationality) return `${draft.nationality} selected—we’ll use its qualification and scholarship rule branches.`;
+  if (page === 2 && draft.currentCountry && draft.nationality) {
+    return draft.currentCountry === draft.nationality
+      ? "Citizenship and residence align, so there is one less rule branch to verify."
+      : `We’ll keep ${draft.nationality} citizenship and ${draft.currentCountry} residence rules separate.`;
+  }
+  if (page === 5 && draft.gradeValue && draft.gradeMaximum) return `Result preserved as ${draft.gradeValue}/${draft.gradeMaximum}; the planning signal is ${Math.round((draft.gradeValue / draft.gradeMaximum) * 100)}%.`;
+  if (page === 8 && draft.destinationPreference) return draft.destinationPreference === "suggest" ? "Good choice—ScholarPath can compare routes before prioritizing a country." : `${draft.destinationPreference} will be prioritized while alternatives remain visible.`;
+  if (page === 9 && draft.fundingNeed) return draft.fundingNeed === "full" ? "We’ll prioritize full-award and lower-cost routes, separate from admission fit." : "Awards and personal-contribution routes will be compared separately.";
+  if (page === 11 && draft.englishStatus) return `English readiness is marked ${draft.englishStatus.replaceAll("_", " ")}; the action plan will adjust its timing.`;
+  if (page === 13 && draft.researchEvidence) {
+    const count = draft.researchEvidence.filter((item) => item !== "none").length;
+    return count ? `${count} documentable research signal${count === 1 ? "" : "s"} will inform programme fit.` : "No evidence yet is valid; the plan will show what to build first.";
+  }
+  if (page === 14 && draft.weeklyHours) return `${draft.weeklyHours} hours per week gives the action planner a realistic pace.`;
+  return pageFeedback[page];
+}
+
+function CoachLine({ page, draft }: { page: number; draft: Draft }) {
+  return (
+    <p className="coach-line" aria-live="polite" key={page}>
+      <Sparkles size={15} /> {buildCoachInsight(page, draft)}
+    </p>
+  );
+}
+
 function StepContent({
   step,
   draft,
@@ -268,15 +335,16 @@ function StepContent({
   const origin = draft.nationality ?? "Pakistan";
   const qualifications = qualificationOptions[origin];
 
-  if (step === 0) {
+  if (step >= 0 && step <= 2) {
     return (
       <>
         <StepHeading
-          eyebrow="Step 1 · Your starting point"
-          title="Let’s begin with the rules that apply to you."
-          description="Country and residence determine which qualification and scholarship branches the system should open."
+          eyebrow="About you"
+          title={step === 0 ? "What should we call you?" : step === 1 ? "What is your citizenship?" : "Where do you currently live?"}
+          description={step === 0 ? "We’ll use this to personalize your workspace." : step === 1 ? "This helps us use the correct qualification and funding rules." : "Citizenship and residence can affect different parts of your pathway."}
         />
         <div className="form-stack">
+          {step === 0 &&
           <Field label="What should we call you?">
             <input
               value={draft.firstName ?? ""}
@@ -284,7 +352,8 @@ function StepContent({
               placeholder="Your first name"
               autoComplete="given-name"
             />
-          </Field>
+          </Field>}
+          {step === 1 &&
           <Field label="Your citizenship">
             <div className="choice-grid choice-grid--three">
               {originOptions.map((country) => (
@@ -304,7 +373,8 @@ function StepContent({
                 />
               ))}
             </div>
-          </Field>
+          </Field>}
+          {step === 2 && <>
           <Field label="Where do you currently live?">
             <div className="select-wrap">
               <select
@@ -317,24 +387,25 @@ function StepContent({
             </div>
           </Field>
           <SystemNote title="We adjusted the profile branch">
-            We’ll use the {origin} qualification structure and keep your residence separate for
-            future visa and document checks. You can correct either value later.
+            We’ll use the {origin} qualification structure while keeping residence separate. You can change either later.
           </SystemNote>
+          </>}
         </div>
       </>
     );
   }
 
-  if (step === 1) {
+  if (step >= 3 && step <= 6) {
     const scaleLabel = draft.gradeMaximum === 100 ? "Percentage" : `CGPA out of ${draft.gradeMaximum}`;
     return (
       <>
         <StepHeading
-          eyebrow="Step 2 · Academic evidence"
-          title="Describe the qualification you will apply with."
-          description="We preserve your original result. Internal normalization is shown only as a planning aid."
+          eyebrow="Academic record"
+          title={step === 3 ? "Which qualification will you apply with?" : step === 4 ? "Where and what did you study?" : step === 5 ? "What was your result?" : "What is your degree status?"}
+          description={step === 3 ? "Choose the record most relevant to your next degree." : step === 4 ? "This keeps future comparisons aligned with your academic background." : step === 5 ? "Enter it exactly as your institution reports it." : "This tells us which opportunities are timely for you."}
         />
         <div className="form-stack">
+          {step === 3 && <>
           <Field label="Highest relevant qualification">
             <div className="select-wrap">
               <select
@@ -351,6 +422,8 @@ function StepContent({
               <ChevronDown size={17} />
             </div>
           </Field>
+          </>}
+          {step === 4 && <>
           <Field label="Institution or awarding university" hint="Start typing the official name. A registry-backed selector will replace this launch dataset.">
             <div className="search-field"><Search size={17} /><input
               value={draft.institution ?? ""}
@@ -367,6 +440,8 @@ function StepContent({
               <ChevronDown size={17} />
             </div>
           </Field>
+          </>}
+          {step === 5 && <>
           <div className="two-column">
             <Field label="Result format">
               <div className="select-wrap">
@@ -394,6 +469,13 @@ function StepContent({
               />
             </Field>
           </div>
+          {draft.gradeValue ? (
+            <SystemNote title="Planning signal calculated">
+              Stored as {draft.gradeValue}/{draft.gradeMaximum}. Approximate planning signal: {Math.round((draft.gradeValue / (draft.gradeMaximum ?? 4)) * 100)}%. This is not an official equivalency.
+            </SystemNote>
+          ) : null}
+          </>}
+          {step === 6 && <>
           <div className="two-column">
             <Field label="Degree status">
               <div className="select-wrap"><select
@@ -409,32 +491,28 @@ function StepContent({
               <input type="number" min="1980" max={new Date().getFullYear() + 4} value={draft.graduationYear ?? ""} onChange={(event) => update({ graduationYear: Number(event.target.value) })} />
             </Field>
           </div>
-          {draft.gradeValue ? (
-            <SystemNote title="Planning signal calculated">
-              Your result is stored as {draft.gradeValue}/{draft.gradeMaximum}. The approximate
-              planning signal is {Math.round((draft.gradeValue / (draft.gradeMaximum ?? 4)) * 100)}%.
-              We will never present this as an official equivalency.
-            </SystemNote>
-          ) : null}
+          </>}
         </div>
       </>
     );
   }
 
-  if (step === 2) {
+  if (step >= 7 && step <= 10) {
     return (
       <>
         <StepHeading
-          eyebrow="Step 3 · Goal and constraints"
-          title="Let the system suggest routes before you commit to a country."
-          description="Your intake, funding dependency and destination flexibility shape a responsible portfolio."
+          eyebrow="Goal and funding"
+          title={step === 7 ? "Which intake are you targeting?" : step === 8 ? "Where would you like to study?" : step === 9 ? "How dependent are you on funding?" : "What can you currently contribute?"}
+          description={step === 7 ? "This anchors deadlines and preparation time." : step === 8 ? "Choose a preference or let ScholarPath suggest suitable routes." : step === 9 ? "We keep funding eligibility separate from admission fit." : "An honest range helps us filter out financially unrealistic routes."}
         />
         <div className="form-stack">
+          {step === 7 &&
           <Field label="Target intake">
             <div className="select-wrap"><select value={draft.intake ?? ""} onChange={(event) => update({ intake: event.target.value })}>
               {intakeOptions.map((intake) => <option key={intake}>{intake}</option>)}
             </select><ChevronDown size={17} /></div>
-          </Field>
+          </Field>}
+          {step === 8 &&
           <Field label="Destination preference">
             <div className="choice-grid choice-grid--two">
               {[
@@ -446,7 +524,8 @@ function StepContent({
                 <Choice key={value} title={title} description={description} selected={draft.destinationPreference === value} onClick={() => update({ destinationPreference: value as AssessmentInput["destinationPreference"] })} />
               ))}
             </div>
-          </Field>
+          </Field>}
+          {step === 9 &&
           <Field label="How dependent are you on funding?">
             <div className="choice-grid choice-grid--two">
               {[
@@ -458,7 +537,8 @@ function StepContent({
                 <Choice key={value} title={title} description={description} selected={draft.fundingNeed === value} onClick={() => update({ fundingNeed: value as AssessmentInput["fundingNeed"] })} />
               ))}
             </div>
-          </Field>
+          </Field>}
+          {step === 10 && <>
           <Field label="Maximum contribution currently available" hint="We keep the original currency. Exchange-rate assumptions will be timestamped later.">
             <div className="money-field">
               <select value={draft.budgetCurrency ?? "PKR"} onChange={(event) => update({ budgetCurrency: event.target.value as AssessmentInput["budgetCurrency"] })}>
@@ -469,15 +549,16 @@ function StepContent({
           </Field>
           <SystemNote title="Early route signal">
             {draft.fundingNeed === "full"
-              ? "We will prioritize scholarship-dependent and lower-tuition research lanes, but keep admission and award eligibility separate."
-              : "We will compare award routes with responsible personal-contribution pathways instead of assuming one funding outcome."}
+              ? "We’ll prioritize scholarship-dependent and lower-tuition lanes."
+              : "We’ll compare awards with responsible personal-contribution routes."}
           </SystemNote>
+          </>}
         </div>
       </>
     );
   }
 
-  if (step === 3) {
+  if (step >= 11 && step <= 15) {
     const toggleEvidence = (value: AssessmentInput["researchEvidence"][number]) => {
       const current = draft.researchEvidence ?? ["none"];
       if (value === "none") return update({ researchEvidence: ["none"] });
@@ -490,11 +571,12 @@ function StepContent({
     return (
       <>
         <StepHeading
-          eyebrow="Step 4 · Evidence and capacity"
-          title="What can your application prove today?"
-          description="Declaring a fact is useful. Attaching evidence later is what turns it into a verified signal."
+          eyebrow="Evidence and readiness"
+          title={step === 11 ? "Where are you with your English test?" : step === 12 ? "How much relevant experience do you have?" : step === 13 ? "What academic evidence can you document?" : step === 14 ? "How much time can you give this each week?" : "What is blocking you most?"}
+          description={step === 11 ? "This helps sequence preparation and deadlines." : step === 12 ? "Experience helps, but it is only one part of the profile." : step === 13 ? "Select what you can prove today—none yet is completely valid." : step === 14 ? "We’ll pace your actions around your real capacity." : "Your answer helps us choose the most useful first task."}
         />
         <div className="form-stack">
+          {step === 11 && <>
           <Field label="English-test status">
             <div className="choice-grid choice-grid--two">
               {[
@@ -519,6 +601,8 @@ function StepContent({
               </Field>
             </div>
           )}
+          </>}
+          {step === 12 &&
           <Field label="Relevant work experience">
             <div className="select-wrap"><select value={draft.experienceRange ?? "none"} onChange={(event) => update({ experienceRange: event.target.value as AssessmentInput["experienceRange"] })}>
               <option value="none">No formal experience yet</option>
@@ -526,7 +610,8 @@ function StepContent({
               <option value="one_to_two">1–2 years</option>
               <option value="three_plus">3+ years</option>
             </select><ChevronDown size={17} /></div>
-          </Field>
+          </Field>}
+          {step === 13 &&
           <Field label="Research or project evidence" hint="Select everything you can document.">
             <div className="chip-grid">
               {[
@@ -548,11 +633,13 @@ function StepContent({
                 </button>
               ))}
             </div>
-          </Field>
+          </Field>}
+          {step === 14 &&
           <Field label={`Weekly time available · ${draft.weeklyHours ?? 7} hours`}>
             <input className="range" type="range" min="1" max="20" value={draft.weeklyHours ?? 7} onChange={(event) => update({ weeklyHours: Number(event.target.value) })} />
             <span className="range-labels"><span>1 hour</span><span>20 hours</span></span>
-          </Field>
+          </Field>}
+          {step === 15 &&
           <Field label="What is blocking you most?">
             <div className="select-wrap"><select value={draft.biggestBlocker ?? "where_to_start"} onChange={(event) => update({ biggestBlocker: event.target.value as AssessmentInput["biggestBlocker"] })}>
               <option value="where_to_start">I do not know where to start</option>
@@ -561,7 +648,7 @@ function StepContent({
               <option value="documents">My documents are disorganized</option>
               <option value="deadlines">I keep missing timelines</option>
             </select><ChevronDown size={17} /></div>
-          </Field>
+          </Field>}
         </div>
       </>
     );
@@ -573,7 +660,7 @@ function StepContent({
   return (
     <>
       <StepHeading
-        eyebrow="Step 5 · Confirm the system’s understanding"
+        eyebrow="Review"
         title={`${draft.firstName || "Your"} profile is ready for a first pathway.`}
         description="Review the facts and derived signals below. The result will keep unresolved evidence visible."
       />
@@ -798,10 +885,22 @@ export function AssessmentExperience() {
   };
 
   const currentValid = useMemo(() => {
-    if (step === 0) return Boolean(draft.firstName?.trim() && draft.nationality && draft.currentCountry);
-    if (step === 1) return Boolean(draft.qualification && draft.institution?.trim() && draft.fieldFamily && draft.gradeValue && draft.graduationYear);
-    if (step === 2) return Boolean(draft.intake && draft.fundingNeed && draft.destinationPreference && draft.budgetCurrency);
-    if (step === 3) return Boolean(draft.englishStatus && draft.experienceRange && draft.researchEvidence?.length && draft.weeklyHours && draft.biggestBlocker && (draft.englishStatus !== "completed" || (draft.englishTest && draft.englishScore)));
+    if (step === 0) return Boolean(draft.firstName?.trim());
+    if (step === 1) return Boolean(draft.nationality);
+    if (step === 2) return Boolean(draft.currentCountry);
+    if (step === 3) return Boolean(draft.qualification);
+    if (step === 4) return Boolean(draft.institution?.trim() && draft.fieldFamily);
+    if (step === 5) return Boolean(draft.gradeValue);
+    if (step === 6) return Boolean(draft.graduationYear && draft.completionStatus);
+    if (step === 7) return Boolean(draft.intake);
+    if (step === 8) return Boolean(draft.destinationPreference);
+    if (step === 9) return Boolean(draft.fundingNeed);
+    if (step === 10) return Boolean(draft.budgetCurrency);
+    if (step === 11) return Boolean(draft.englishStatus && (draft.englishStatus !== "completed" || (draft.englishTest && draft.englishScore)));
+    if (step === 12) return Boolean(draft.experienceRange);
+    if (step === 13) return Boolean(draft.researchEvidence?.length);
+    if (step === 14) return Boolean(draft.weeklyHours);
+    if (step === 15) return Boolean(draft.biggestBlocker);
     return true;
   }, [draft, step]);
 
@@ -833,7 +932,8 @@ export function AssessmentExperience() {
   if (mode === "analyzing") return <AnalysisView stage={analysisStage} />;
   if (mode === "workspace" && report) return <Workspace report={report} name={draft.firstName ?? "Student"} onRestart={() => { setReport(null); setStep(0); setMode("assessment"); }} />;
 
-  const progress = ((step + 1) / steps.length) * 100;
+  const progress = ((step + 1) / pages.length) * 100;
+  const activeSection = pages[step].section;
   const move = (next: number, nextDirection: "forward" | "back") => {
     setDirection(nextDirection);
     setStep(next);
@@ -842,31 +942,31 @@ export function AssessmentExperience() {
 
   return (
     <main className="assessment-shell">
-      <header className="assessment-top"><Brand /><span><Check size={13} /> Draft saved on this device</span></header>
-      <div className="mobile-progress"><span>Step {step + 1} of {steps.length}</span><strong>{steps[step].label}</strong><i><b style={{ width: `${progress}%` }} /></i></div>
+      <header className="assessment-top">
+        <Brand />
+        <div className="assessment-top__progress" aria-label={`Question ${step + 1} of ${pages.length}`}>
+          <i><b style={{ width: `${progress}%` }} /></i>
+          <strong>{pages[step].label}</strong>
+        </div>
+        <span><Check size={13} /> Draft saved on this device</span>
+      </header>
+      <div className="mobile-progress"><span>Question {step + 1} of {pages.length}</span><strong>{pages[step].label}</strong><i><b style={{ width: `${progress}%` }} /></i></div>
       <div className="assessment-layout">
-        <aside className="step-sidebar">
-          <div><span className="eyebrow">Your pathway profile</span><h2>A focused conversation, not a generic form.</h2><p>Each answer changes what the system asks or suggests next.</p></div>
-          <ol>
-            {steps.map((item, index) => {
-              const Icon = item.icon;
-              return (
-                <li key={item.label} className={index === step ? "active" : index < step ? "complete" : ""}>
-                  <span>{index < step ? <Check size={14} /> : <Icon size={16} />}</span>
-                  <div><small>0{index + 1}</small><strong>{item.label}</strong></div>
-                </li>
-              );
-            })}
-          </ol>
-          <div className="sidebar-note"><ShieldCheck size={18} /><span><strong>Transparent guidance</strong>Suggestions never overwrite your facts.</span></div>
-        </aside>
+        <nav className="section-tabs" aria-label="Profile sections">
+          {sections.map((item, index) => (
+            <span key={item.label} className={index === activeSection ? "active" : index < activeSection ? "complete" : ""}>
+              {index < activeSection ? <Check size={13} /> : index + 1} {item.label}
+            </span>
+          ))}
+        </nav>
         <section className="form-panel">
           <div className={`form-content form-content--${direction}`} key={step}>
             <StepContent step={step} draft={draft} update={update} />
+            <CoachLine page={step} draft={draft} />
           </div>
           <footer className="form-footer">
             <Button variant="quiet" disabled={step === 0} onClick={() => move(step - 1, "back")}><ArrowLeft size={16} /> Back</Button>
-            <div>{error && <span className="form-error">{error}</span>}<Button disabled={!currentValid} onClick={() => step === steps.length - 1 ? void submit() : move(step + 1, "forward")}>{step === steps.length - 1 ? "Build my pathway" : "Continue"} <ArrowRight size={16} /></Button></div>
+            <div>{error && <span className="form-error">{error}</span>}<Button disabled={!currentValid} onClick={() => step === pages.length - 1 ? void submit() : move(step + 1, "forward")}>{step === pages.length - 1 ? "Build my pathway" : "Continue"} <ArrowRight size={16} /></Button></div>
           </footer>
         </section>
       </div>

@@ -38,7 +38,7 @@ import {
   WalletCards,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { applications, documents, opportunities, sourceQueue, tasks } from "@/modules/product/demo-data";
 
 const primaryNav = [
@@ -67,7 +67,7 @@ export function ProductApp({ module }: ProductAppProps) {
   const title = pageTitle(module);
 
   return (
-    <div className="product-app">
+    <div className={`product-app ${module === "today" ? "product-app--dashboard" : ""}`}>
       <aside className={`product-rail ${mobileMenu ? "is-open" : ""}`}>
         <div className="product-rail__head">
           <Link className="product-brand" href="/today">
@@ -83,8 +83,8 @@ export function ProductApp({ module }: ProductAppProps) {
           {workspaceNav.slice(1).map((item) => <NavLink key={item.href} {...item} pathname={pathname} />)}
         </nav>
         <div className="product-rail__bottom">
-          <Link href="/help"><CircleHelp size={16} /> Help & corrections</Link>
-          <Link href="/profile"><UserRound size={16} /> Profile & evidence</Link>
+          <Link href="/help"><CircleHelp size={16} /> <span>Help & corrections</span></Link>
+          <Link href="/profile"><UserRound size={16} /> <span>Profile & evidence</span></Link>
           <div className="rail-trust"><ShieldCheck size={17} /><span><strong>Sources visible</strong><small>No invented probability</small></span></div>
         </div>
       </aside>
@@ -98,6 +98,7 @@ export function ProductApp({ module }: ProductAppProps) {
             <span className="mobile-product-mark"><GraduationCap size={16} /></span>
             <div><small>ScholarPath</small><strong>{title}</strong></div>
           </div>
+          {module === "today" && <nav className="dashboard-topnav" aria-label="Dashboard sections"><Link className="active" href="/today">Overview</Link><Link href="/discover">Pathways</Link><Link href="/applications">Applications</Link><Link href="/workspace">Plan</Link><Link href="/workspace/documents">Documents</Link></nav>}
           <div className="product-topbar__right">
             <button className="command-button"><Search size={15} /><span>Search anything</span><kbd><Command size={10} /> K</kbd></button>
             <Link className="icon-control notification-control" href="/notifications" aria-label="Notifications"><Bell size={17} /><i /></Link>
@@ -145,77 +146,79 @@ function PageIntro({ eyebrow, title, description, action }: { eyebrow: string; t
 }
 
 function Today() {
-  const [guideView, setGuideView] = useState<"why" | "missing" | "next">("why");
+  const [selectedFit, setSelectedFit] = useState<(typeof opportunities)[number] | null>(null);
 
-  const guideContent = {
-    why: {
-      eyebrow: "Why this is first",
-      title: "One document can unblock two routes",
-      body: "Leeds and Saarland both require module-level mathematics evidence. Your transcript names the modules but does not show their content.",
-    },
-    missing: {
-      eyebrow: "Evidence missing",
-      title: "A syllabus or official module description",
-      body: "Upload an official course outline showing calculus, linear algebra, statistics, or discrete mathematics. ScholarPath will attach it to both requirement checks.",
-    },
-    next: {
-      eyebrow: "After you upload",
-      title: "We re-check the affected requirements",
-      body: "The rules engine will compare the document against both programme requirements and show Confirmed, Still conditional, or Needs review—never a hidden probability.",
-    },
-  }[guideView];
+  useEffect(() => {
+    if (!selectedFit) return;
+    const close = (event: KeyboardEvent) => event.key === "Escape" && setSelectedFit(null);
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", close);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", close);
+    };
+  }, [selectedFit]);
 
   return (
     <>
-      <PageIntro eyebrow="Thursday, 30 July" title="Here is what moves your plan forward." description="ScholarPath has checked your deadlines, requirements, evidence, and funding dependencies. One action has the highest impact today." action={<Link className="product-button product-button--secondary" href="/profile"><UserRound size={18} /> Profile evidence: 72%</Link>} />
-      <div className="today-layout">
-        <div className="today-main">
-          <section className="next-action-card">
-            <span className="next-action-card__icon"><Target size={24} /></span>
-            <div><small>Highest-impact action · about 12 minutes</small><h2>Verify your mathematics module coverage</h2><p>Upload one official document to resolve the same evidence gap across two active applications.</p><span className="next-action-card__impact"><Sparkles size={14} /> Affects Leeds and Saarland</span></div>
-            <Link href="/applications" className="product-button product-button--light">Resolve evidence <ArrowRight size={17} /></Link>
+      <header className="reference-dashboard-head"><div><span className="product-eyebrow">Thursday, 30 July</span><h1>Welcome, Haidar</h1><p>Your personal scholarship dashboard</p></div><span className="fit-freshness"><i /> Intelligence updated today</span></header>
+
+      <div className="reference-dashboard-layout">
+        <div className="reference-dashboard-main">
+          <section className="reference-overview-grid">
+            <article className="student-profile-card">
+              <div className="student-profile-card__head"><span>Profile</span><Link href="/profile"><Settings size={17} /></Link></div>
+              <div className="student-profile-card__portrait"><img src="/images/student-profile-haidar.png" alt="Fictional student profile portrait" /><i>72%</i></div>
+              <h2>Haidar Ali</h2><p>Computing graduate · Pakistan</p>
+              <div className="student-profile-card__stats"><span><strong>14</strong><small>Verified</small></span><span><strong>3</strong><small>Gaps</small></span><span><strong>3</strong><small>Routes</small></span></div>
+            </article>
+            <div className="reference-gradient-stack">
+              <div className="reference-gradient-pair">
+                <article className="reference-gradient-card reference-gradient-card--warm"><div><span>Evidence<br />coverage</span><FileCheck2 size={19} /></div><strong>82%</strong><small>14 of 17 facts verified</small></article>
+                <article className="reference-gradient-card reference-gradient-card--cool"><div><span>Application<br />readiness</span><ClipboardCheck size={19} /></div><strong>62%</strong><small>Leeds application</small></article>
+              </div>
+              <article className="reference-priority-strip"><div><span><Target size={17} /></span><p><strong>Priority move</strong><small>Verify mathematics coverage</small></p></div><Link href="/applications">12 min <ArrowRight size={14} /></Link></article>
+            </div>
           </section>
 
-          <div className="path-pulse" aria-label="Pathway changes since your last visit">
-            <div><span className="path-pulse__icon path-pulse__icon--amber"><AlertCircle size={18} /></span><p><strong>2 routes need evidence</strong><small>The same academic gap affects both.</small></p></div>
-            <div><span className="path-pulse__icon path-pulse__icon--green"><ShieldCheck size={18} /></span><p><strong>1 source reverified</strong><small>Chevening timeline is current.</small></p></div>
-            <div><span className="path-pulse__icon path-pulse__icon--blue"><Sparkles size={18} /></span><p><strong>3 new routes</strong><small>Added after your profile update.</small></p></div>
-          </div>
-      <div className="dashboard-grid">
-        <section className="panel">
-          <PanelHead title="Your next actions" meta="Ordered by impact and deadline" />
-          <div className="task-list-ui">{tasks.slice(0, 3).map((task) => <TaskRow key={task.title} task={task} />)}</div>
-          <Link className="panel-link" href="/workspace">Open your full plan <ArrowRight size={16} /></Link>
-        </section>
-      </div>
+          <section className="evidence-landscape-card">
+            <div className="evidence-landscape-card__head"><div><h2>Evidence landscape</h2><p>How your pathway strength is distributed</p></div><button>Current profile <ChevronDown size={14} /></button></div>
+            <div className="evidence-landscape-chart">
+              <span className="chart-label chart-label--one">Academic</span><span className="chart-label chart-label--two">Subject</span><span className="chart-label chart-label--three">Funding</span><span className="chart-label chart-label--four">Evidence</span>
+              <svg viewBox="0 0 760 250" preserveAspectRatio="none" aria-label="Evidence category visualization">
+                <defs><pattern id="dotPattern" width="10" height="10" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#d0d5dd" /></pattern></defs>
+                <rect width="760" height="250" fill="url(#dotPattern)" opacity=".45" />
+                <path className="evidence-line evidence-line--blue" d="M30 168 C130 48 205 208 292 102 S475 32 560 118 S675 162 730 74" />
+                <path className="evidence-line evidence-line--coral" d="M30 132 C142 188 206 38 304 148 S482 220 556 138 S664 58 730 116" />
+                <circle cx="292" cy="102" r="7" className="evidence-point" />
+              </svg>
+              <div className="evidence-chart-summary"><strong>3</strong><span>live pathways<br />from verified evidence</span></div>
+            </div>
+            <div className="evidence-chart-legend"><span><i className="blue" /> Verified alignment</span><span><i className="coral" /> Conditional evidence</span><small>No admission probability inferred</small></div>
+          </section>
         </div>
 
-        <aside className="path-guide" aria-live="polite">
-          <div className="path-guide__head"><span><Sparkles size={17} /> Path Guide</span><em>Using 8 profile facts</em></div>
-          <div className="path-guide__status"><i /><span><strong>Evidence-backed guidance</strong><small>Rules checked 30 Jul 2026</small></span></div>
-          <div className="path-guide__content" key={guideView}>
-            <span className="product-eyebrow">{guideContent.eyebrow}</span>
-            <h2>{guideContent.title}</h2>
-            <p>{guideContent.body}</p>
-          </div>
-          <div className="path-guide__facts">
-            <span>Data used</span>
-            <button>BS Computer Science <Check size={13} /></button>
-            <button>Transcript uploaded <Check size={13} /></button>
-            <button className="is-missing">Module descriptions missing <AlertCircle size={13} /></button>
-          </div>
-          <div className="path-guide__actions" role="tablist" aria-label="Explain this guidance">
-            <button className={guideView === "why" ? "active" : ""} onClick={() => setGuideView("why")}>Why first?</button>
-            <button className={guideView === "missing" ? "active" : ""} onClick={() => setGuideView("missing")}>What’s missing?</button>
-            <button className={guideView === "next" ? "active" : ""} onClick={() => setGuideView("next")}>What happens next?</button>
-          </div>
-          <Link href="/applications" className="path-guide__source"><Database size={15} /> View rules and official sources <ArrowRight size={15} /></Link>
+        <aside className="reference-dashboard-aside">
+          <section className="upcoming-deadlines-card"><div className="reference-aside-head"><h2>Upcoming deadlines</h2><CalendarDays size={18} /></div>{opportunities.slice(0, 4).map((item) => <button key={item.id} onClick={() => setSelectedFit(item)}><time><small>{item.deadline.split(" ")[1]}</small><strong>{item.deadline.split(" ")[0]}</strong></time><span><strong>{item.title}</strong><small>{item.provider}</small></span><ArrowRight size={15} /></button>)}<Link href="/workspace">See full calendar <ArrowRight size={14} /></Link></section>
+          <section className="developed-areas-card"><div className="reference-aside-head"><div><h2>Profile alignment</h2><p>Evidence by decision area</p></div><Sparkles size={18} /></div><AlignmentBar label="Academic" state="Verified" width="100%" tone="blue" /><AlignmentBar label="Subject" state="Verified" width="100%" tone="blue" /><AlignmentBar label="Funding" state="Conditional" width="62%" tone="amber" /><AlignmentBar label="Language" state="Missing" width="38%" tone="coral" /></section>
         </aside>
       </div>
-      <section className="section-block">
-        <div className="section-heading"><div><span className="product-eyebrow">New verified routes</span><h2>Worth reviewing this week</h2></div><Link href="/discover">Discover all <ArrowRight size={14} /></Link></div>
-        <div className="opportunity-grid">{opportunities.slice(0, 3).map((item) => <OpportunityCard key={item.id} item={item} />)}</div>
+
+      <section className="route-radar-card route-radar-card--wide">
+        <div className="decision-card-head"><div><span className="product-eyebrow">Recommendation engine</span><h2>How your profile becomes a pathway</h2><p>Facts pass through evidence gates before a route is surfaced.</p></div><Link href="/discover">Explore all <ArrowRight size={14} /></Link></div>
+        <div className="recommendation-flow">
+          <svg className="recommendation-flow__lines" viewBox="0 0 760 330" preserveAspectRatio="none" aria-hidden="true"><path className="flow-line flow-line--blue" d="M176 165 C235 165 228 70 292 70" /><path className="flow-line flow-line--green" d="M176 165 C235 165 228 165 292 165" /><path className="flow-line flow-line--amber" d="M176 165 C235 165 228 260 292 260" /><path className="flow-line flow-line--blue" d="M445 70 C505 70 496 58 552 58" /><path className="flow-line flow-line--green" d="M445 165 C505 165 496 165 552 165" /><path className="flow-line flow-line--amber" d="M445 260 C505 260 496 272 552 272" /><circle cx="176" cy="165" r="4" /><circle cx="292" cy="70" r="4" /><circle cx="292" cy="165" r="4" /><circle cx="292" cy="260" r="4" /><circle cx="552" cy="58" r="4" /><circle cx="552" cy="165" r="4" /><circle cx="552" cy="272" r="4" /></svg>
+          <div className="flow-column flow-column--profile"><span className="flow-column__label">Your profile</span><article className="flow-profile-node"><div className="flow-profile-node__ring">72%</div><h3>Haidar Ali</h3><p>Pakistan · Computing</p><div><span><Check size={13} /> 14 verified</span><span><AlertCircle size={13} /> 3 gaps</span></div></article></div>
+          <div className="flow-column flow-column--evidence"><span className="flow-column__label">Evidence gates</span><FlowGate icon={GraduationCap} title="Academic fit" detail="Degree aligned" state="Verified" tone="green" /><FlowGate icon={FileCheck2} title="Mathematics" detail="Module proof needed" state="Review" tone="amber" /><FlowGate icon={WalletCards} title="Funding" detail="Award dependent" state="Conditional" tone="blue" /></div>
+          <div className="flow-column flow-column--routes"><span className="flow-column__label">Live pathways</span>{opportunities.slice(0, 3).map((item, index) => <FlowRoute key={item.id} item={item} rank={index + 1} onOpen={() => setSelectedFit(item)} />)}</div>
+        </div>
       </section>
+
+      <section className="today-plan-card">
+        <div className="decision-card-head"><div><span className="product-eyebrow">Momentum plan</span><h2>Three moves. One clearer pathway.</h2></div><Link href="/workspace">Open full plan <ArrowRight size={14} /></Link></div>
+        <div className="today-plan-grid">{tasks.slice(0, 3).map((task, index) => <PlanMove key={task.title} task={task} index={index + 1} />)}</div>
+      </section>
+      {selectedFit && <FitDetailModal item={selectedFit} onClose={() => setSelectedFit(null)} />}
     </>
   );
 }
@@ -479,6 +482,102 @@ function Admin() {
 
 function WorkspaceTabs({ active }: { active: string }) {
   return <nav className="workspace-tabs" aria-label="Workspace sections">{workspaceNav.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className={active === label ? "active" : ""}><Icon size={15} /> {label}</Link>)}</nav>;
+}
+
+function Signal({ label, state, tone, width }: { label: string; state: string; tone: string; width: string }) {
+  return <div className="pathway-signal"><span><small>{label}</small><strong>{state}</strong></span><i><b className={`signal-${tone}`} style={{ width }} /></i></div>;
+}
+
+function PathStat({ icon: Icon, value, label, detail, tone }: { icon: typeof Target; value: string; label: string; detail: string; tone: string }) {
+  return <article className="pathway-stat"><span className={`pathway-stat__icon pathway-stat__icon--${tone}`}><Icon size={18} /></span><div><strong>{value}</strong><span>{label}</span><small>{detail}</small></div></article>;
+}
+
+function FlowGate({ icon: Icon, title, detail, state, tone }: { icon: typeof GraduationCap; title: string; detail: string; state: string; tone: string }) {
+  return <article className={`flow-gate flow-gate--${tone}`}><span><Icon size={16} /></span><div><strong>{title}</strong><small>{detail}</small></div><em>{state}</em></article>;
+}
+
+function AlignmentBar({ label, state, width, tone }: { label: string; state: string; width: string; tone: string }) {
+  return <div className="alignment-bar"><span><strong>{label}</strong><small>{state}</small></span><i><b className={`alignment-bar--${tone}`} style={{ width }} /></i></div>;
+}
+
+function FlowRoute({ item, rank, onOpen }: { item: (typeof opportunities)[number]; rank: number; onOpen: () => void }) {
+  const state = item.match === "Confirmed match" ? "aligned" : item.match === "Conditional match" ? "conditional" : "unknown";
+  return <button className="flow-route" onClick={onOpen}><span className="flow-route__rank">0{rank}</span><span className="flow-route__copy"><small>{item.flag} · {rank === 1 ? "Strongest" : rank === 2 ? "Alternative" : "Funding-first"}</small><strong>{item.title}</strong><em>{item.provider}</em></span><span className={`flow-route__state flow-route__state--${state}`}><i /></span><ArrowRight size={15} /></button>;
+}
+
+function RadarRoute({ item, rank, onOpen }: { item: (typeof opportunities)[number]; rank: number; onOpen: () => void }) {
+  const state = item.match === "Confirmed match" ? "aligned" : item.match === "Conditional match" ? "conditional" : "unknown";
+  const signalLabel = state === "aligned" ? "Verified" : state === "conditional" ? "Conditional" : "Verify first";
+  return (
+    <button className="radar-route" onClick={onOpen}>
+      <span className="radar-route__rank">0{rank}</span>
+      <span className="radar-route__country">{item.flag}</span>
+      <span className="radar-route__copy"><small>{rank === 1 ? "Strongest route" : rank === 2 ? "Strong alternative" : "Funding-first"}</small><strong>{item.title}</strong><em>{item.provider} · {item.country}</em></span>
+      <span className="radar-route__signals" aria-label={`${signalLabel} evidence pattern`}><i className="aligned" /><i className="aligned" /><i className={state === "unknown" ? "unknown" : "conditional"} /><i className="unknown" /></span>
+      <span className={`fit-state fit-state--${state}`}><i /> {signalLabel}</span>
+      <ArrowRight size={16} />
+    </button>
+  );
+}
+
+function PlanMove({ task, index }: { task: (typeof tasks)[number]; index: number }) {
+  const tone = task.state === "To do" ? "blue" : task.state === "In progress" ? "green" : "amber";
+  return <article className="plan-move"><span className={`plan-move__number plan-move__number--${tone}`}>0{index}</span><div><small>{task.context}</small><strong>{task.title}</strong><span>{task.state} · {task.due}</span></div><button aria-label={`Open ${task.title}`}><ArrowRight size={15} /></button></article>;
+}
+
+function DashboardMetric({ icon: Icon, label, value, note, tone, progress }: { icon: typeof UserRound; label: string; value: string; note: string; tone: string; progress?: number }) {
+  return <article className="dashboard-metric"><span className={`dashboard-metric__icon dashboard-metric__icon--${tone}`}><Icon size={18} /></span><div><small>{label}</small><strong>{value}</strong><em>{note}</em></div>{progress !== undefined && <i><b style={{ width: `${progress}%` }} /></i>}</article>;
+}
+
+function DashboardOpportunity({ item, onOpen }: { item: (typeof opportunities)[number]; onOpen: () => void }) {
+  const tone = item.match === "Confirmed match" ? "green" : item.match === "Conditional match" ? "amber" : "slate";
+  return <button className="dashboard-opportunity" onClick={onOpen}><span className="country-mark">{item.flag}</span><span><strong>{item.title}</strong><small>{item.provider} · {item.kind}</small></span><span className={`status-pill status-pill--${tone}`}>{item.match.replace(" match", "")}</span><time><strong>{item.deadline.split(" ").slice(0, 2).join(" ")}</strong><small>Deadline</small></time><ArrowRight size={16} /></button>;
+}
+
+function DashboardFit({ item, rank, onOpen }: { item: (typeof opportunities)[number]; rank: number; onOpen: () => void }) {
+  const state = item.match === "Confirmed match" ? "aligned" : item.match === "Conditional match" ? "conditional" : "unknown";
+  return <button className="dashboard-fit" onClick={onOpen}><span className="fit-rank">{rank}</span><span><small>{rank === 1 ? "Strongest fit" : rank === 2 ? "Alternative" : "Funding-first"}</small><strong>{item.country}</strong><em>{item.title}</em></span><span className={`fit-state fit-state--${state}`}><i /> {item.match.replace(" match", "")}</span><span className="dashboard-fit__meter"><i className="aligned" /><i className="aligned" /><i className={state === "unknown" ? "unknown" : "conditional"} /><i className="unknown" /></span><ArrowRight size={15} /></button>;
+}
+
+function FitOverviewCard({ item, rank, onOpen }: { item: (typeof opportunities)[number]; rank: number; onOpen: () => void }) {
+  const state = item.match === "Confirmed match" ? "aligned" : item.match === "Conditional match" ? "conditional" : "unknown";
+  const label = rank === 1 ? "Strongest current fit" : rank === 2 ? "Promising alternative" : "Funding-first option";
+  return (
+    <article className={`fit-card fit-card--${state}`}>
+      <div className="fit-card__top">
+        <span className="fit-rank">{rank}</span>
+        <span className={`fit-state fit-state--${state}`}><i /> {item.match.replace(" match", "")}</span>
+        <button aria-label={`Save ${item.title}`}><Heart size={17} fill={item.saved ? "currentColor" : "none"} /></button>
+      </div>
+      <span className="product-eyebrow">{label}</span>
+      <h3>{item.title}</h3>
+      <p>{item.provider} · {item.country}</p>
+      <div className="fit-card__signals">
+        {item.reasons.slice(0, 2).map((reason) => <span key={reason}><Check size={13} /> {reason}</span>)}
+      </div>
+      <div className="fit-card__meter" aria-label={`${item.match}; evidence alignment overview`}>
+        <i className="aligned" /><i className="aligned" /><i className={state === "unknown" ? "unknown" : "conditional"} /><i className="unknown" />
+      </div>
+      <div className="fit-card__bottom"><span><CalendarDays size={14} /> {item.deadline}</span><button onClick={onOpen}>See why it fits <ArrowRight size={14} /></button></div>
+    </article>
+  );
+}
+
+function FitDetailModal({ item, onClose }: { item: (typeof opportunities)[number]; onClose: () => void }) {
+  return (
+    <div className="fit-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <section className="fit-modal" role="dialog" aria-modal="true" aria-labelledby="fit-modal-title">
+        <header><div><span className="product-eyebrow">Explainable match</span><h2 id="fit-modal-title">Why {item.title} surfaced</h2></div><button className="icon-control" onClick={onClose} aria-label="Close fit details"><X size={18} /></button></header>
+        <div className="fit-modal__summary"><span className="country-mark">{item.flag}</span><div><strong>{item.provider}</strong><small>{item.country} · {item.kind}</small></div><span className={`match-pill match-pill--${item.match.toLowerCase().replaceAll(" ", "-")}`}>{item.match}</span></div>
+        <div className="fit-modal__columns">
+          <div><span className="fit-modal__icon fit-modal__icon--green"><Check size={17} /></span><h3>What aligns</h3><ul>{item.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></div>
+          <div><span className="fit-modal__icon fit-modal__icon--amber"><AlertCircle size={17} /></span><h3>Still to verify</h3><p>{item.condition}</p></div>
+        </div>
+        <div className="fit-modal__source"><Database size={16} /><span><strong>Evidence state</strong><small>{item.freshness} source record · no acceptance probability inferred</small></span></div>
+        <footer><button className="product-button product-button--secondary" onClick={onClose}>Close</button><Link className="product-button product-button--primary" href="/discover">Open full route <ArrowRight size={15} /></Link></footer>
+      </section>
+    </div>
+  );
 }
 
 function OpportunityCard({ item, detailed = false }: { item: (typeof opportunities)[number]; detailed?: boolean }) {
