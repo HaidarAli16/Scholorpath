@@ -16,11 +16,15 @@ const routes: Record<string, string> = {
   help: "help",
   operations: "operations",
   admin: "admin",
+  settings: "settings",
+  "settings/notifications": "settings-notifications",
+  "settings/privacy": "settings-privacy",
+  "settings/plan": "settings-plan",
 };
 
 export default async function PlatformRoute({ params }: { params: Promise<{ slug: string[] }> }) {
   const { slug } = await params;
-  const module = routes[slug.join("/")];
+  const module = slug[0] === "discover" && slug.length === 2 ? "opportunity" : routes[slug.join("/")];
   if (!module) notFound();
   return <ProductApp module={module} />;
 }

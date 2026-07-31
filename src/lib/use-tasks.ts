@@ -1,0 +1,74 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { canTransition } from "@/modules/tasks/engine";
+import type { ApplicationReadiness, ExecutionTask, ImpactLevel, ImpactType, TaskState } from "@/modules/tasks/types";
+
+type TaskPayload = { mode: "demo" | "live"; authenticated: boolean; tasks: ExecutionTask[]; readiness: ApplicationReadiness[] };
+type Action =
+  | { action: "create"; title: string; description?: string; dueAt?: string | null; impactLevel?: ImpactLevel; impactType?: ImpactType; applicationId?: string | null; estimatedMinutes?: number | null }
+  | { action: "transition"; id: string; state: TaskState; note?: string; evidenceDocumentId?: string | null }
+  | { action: "move"; id: string; state: TaskState; position: number }
+  | { action: "update"; id: string; title?: string; description?: string | null; dueAt?: string | null; assignedName?: string | null; assignedEmail?: string | null; impactLevel?: ImpactLevel };
+
+export function useTasks() {
+  const [data, setData] = useState<TaskPayload | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch("/api/tasks", { cache: "no-store" });
+      let payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Tasks could not be loaded.");
+      if (payload.mode === "live") {
+        const generationResponse = await fetch("/api/tasks/generate", { method: "POST" });
+        const generation = await generationResponse.json().catch(() => ({ generated: 0 }));
+        if (generationResponse.ok && Number(generation.generated || 0) > 0) {
+          const refreshed = await fetch("/api/tasks", { cache: "no-store" });
+          if (refreshed.ok) payload = await refreshed.json();
+        }
+      }
+      setData(payload); setError(null);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Tasks could not be loaded."); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { void refresh(); }, [refresh]);
+
+  const act = useCallback(async (action: Action) => {
+    if (!data) return;
+    if (data.mode === "demo") {
+      setData((current) => current ? applyLocalAction(current, action) : current);
+      return;
+    }
+    const response = await fetch("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(action) });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "Task could not be updated.");
+    await refresh();
+  }, [data, refresh]);
+
+  const generate = useCallback(async () => {
+    if (data?.mode === "demo") return 0;
+    const response = await fetch("/api/tasks/generate", { method: "POST" }); const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "Tasks could not be generated.");
+    await refresh(); return Number(payload.generated || 0);
+  }, [data?.mode, refresh]);
+
+  return useMemo(() => ({ tasks: data?.tasks ?? [], readiness: data?.readiness ?? [], mode: data?.mode ?? "demo", authenticated: data?.authenticated ?? false, loading, error, act, generate, refresh }), [data, loading, error, act, generate, refresh]);
+}
+
+function applyLocalAction(data: TaskPayload, action: Action): TaskPayload {
+  const now = new Date().toISOString();
+  if (action.action === "create") {
+    const task: ExecutionTask = { id: `local-${Date.now()}`, title: action.title, description: action.description, state: "todo", priority: 3, due_at: action.dueAt, due_timezone: "Asia/Karachi", due_source: "Personal planning target", estimated_minutes: action.estimatedMinutes, system_generated: false, impact_type: action.impactType ?? "application_readiness", impact_level: action.impactLevel ?? "medium", impact_score: { critical: 90, high: 70, medium: 45, low: 20 }[action.impactLevel ?? "medium"], source_type: "personal", application_id: action.applicationId, application_title: null, assigned_name: "You", evidence_required: [], position: 1000, dependencies: [], impacts: [], activity: [{ id: Date.now(), event_type: "created", to_state: "todo", created_at: now }], created_at: now, updated_at: now };
+    return { ...data, tasks: [task, ...data.tasks] };
+  }
+  return { ...data, tasks: data.tasks.map((task) => {
+    if (task.id !== action.id) return task;
+    if (action.action === "update") return { ...task, title: action.title ?? task.title, description: action.description === undefined ? task.description : action.description, due_at: action.dueAt === undefined ? task.due_at : action.dueAt, assigned_name: action.assignedName === undefined ? task.assigned_name : action.assignedName, assigned_email: action.assignedEmail === undefined ? task.assigned_email : action.assignedEmail, impact_level: action.impactLevel ?? task.impact_level, updated_at: now };
+    if (!canTransition(task.state, action.state)) return task;
+    return { ...task, state: action.state, position: action.action === "move" ? action.position : task.position, completed_at: action.state === "completed" ? now : null, completion_note: action.action === "transition" ? action.note ?? task.completion_note : task.completion_note, updated_at: now, activity: [{ id: Date.now(), event_type: action.action === "move" ? "moved" : "state_changed", from_state: task.state, to_state: action.state, created_at: now }, ...(task.activity ?? [])] };
+  }) };
+}

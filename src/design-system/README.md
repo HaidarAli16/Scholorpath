@@ -7,7 +7,7 @@ Application layouts remain specific to the scholarship and admissions workflow.
 
 - `Theme`: semantic light/dark colors, borders, labels, focus, and feedback states.
 - `Spacing`: 4px-based spacing, stroke widths, and corner radii.
-- `Typography`: Inter type ramp from Note through Display 1.
+- `Typography`: Urbanist semantic type ramp from Note through Display 1.
 - `Responsive`: 1232px desktop, 834px tablet, and 390px mobile reference widths.
 - `Effects`: VOIT shadow hierarchy and background-blur behavior.
 

@@ -775,7 +775,7 @@ function Workspace({
       <section className="workspace-main">
         <header className="workspace-top">
           <div><span className="mobile-brand"><Brand /></span><strong>Your pathway workspace</strong></div>
-          <div><span className="sync-state"><i /> Profile saved</span><button onClick={onRestart}><RotateCcw size={15} /> Reassess</button><span className="avatar">{name.slice(0, 2).toUpperCase()}</span></div>
+          <div><span className="sync-state"><i /> Profile saved</span><button onClick={onRestart}><RotateCcw size={15} /> Reassess</button><button className="workspace-enter" onClick={() => window.location.href = "/today"}>Open full workspace <ArrowRight size={15} /></button><span className="avatar">{name.slice(0, 2).toUpperCase()}</span></div>
         </header>
         <div className="workspace-content">
           <section className="workspace-hero" id="today">

@@ -9,36 +9,36 @@
 
   /* Theme / Light */
   --voit-background-base: #ffffff;
-  --voit-background-1: #fafafa;
-  --voit-background-2: #e5e5e5;
-  --voit-background-3: #cccccc;
-  --voit-background-inverse: #000000;
-  --voit-background-primary: #171717;
-  --voit-background-accent: #004cff;
-  --voit-background-accent-light: #99b7ff;
+  --voit-background-1: #f9fafb;
+  --voit-background-2: #f2f4f7;
+  --voit-background-3: #eaecf0;
+  --voit-background-inverse: #101828;
+  --voit-background-primary: #101828;
+  --voit-background-accent: #155eef;
+  --voit-background-accent-light: #d1e0ff;
 
-  --voit-label-primary: rgba(0, 0, 0, 0.9);
-  --voit-label-secondary: rgba(0, 0, 0, 0.5);
-  --voit-label-tertiary: rgba(0, 0, 0, 0.3);
-  --voit-label-disabled: rgba(0, 0, 0, 0.2);
-  --voit-label-inverse: rgba(255, 255, 255, 0.9);
-  --voit-label-accent: #004cff;
-  --voit-label-error: #ff3b30;
+  --voit-label-primary: #101828;
+  --voit-label-secondary: #475467;
+  --voit-label-tertiary: #667085;
+  --voit-label-disabled: #98a2b3;
+  --voit-label-inverse: #ffffff;
+  --voit-label-accent: #155eef;
+  --voit-label-error: #d92d20;
 
-  --voit-border-1: rgba(0, 0, 0, 0.12);
-  --voit-border-2: rgba(0, 0, 0, 0.2);
-  --voit-border-3: rgba(0, 0, 0, 0.3);
-  --voit-border-primary: rgba(0, 0, 0, 0.9);
-  --voit-border-disabled: rgba(0, 0, 0, 0.04);
-  --voit-border-accent: #004cff;
+  --voit-border-1: #eaecf0;
+  --voit-border-2: #d0d5dd;
+  --voit-border-3: #98a2b3;
+  --voit-border-primary: #101828;
+  --voit-border-disabled: #f2f4f7;
+  --voit-border-accent: #155eef;
 
   --voit-button-primary-default: #155eef;
   --voit-button-primary-hover: #004eeb;
   --voit-button-primary-active: #0040c1;
-  --voit-focus: #004cff;
-  --voit-success: #2a9f47;
-  --voit-warning: #e5b800;
-  --voit-error: #ff3b30;
+  --voit-focus: #84adff;
+  --voit-success: #079455;
+  --voit-warning: #dc6803;
+  --voit-error: #d92d20;
 
   /* Spacing */
   --voit-space-0: 0;
@@ -63,8 +63,8 @@
   --voit-corner-huge: 32px;
   --voit-corner-full: 224px;
 
-  /* Typography: Untitled UI uses Inter and a 12/14/16/18/20 body scale. */
-  --voit-font-family: var(--font-inter), Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* Urbanist family with an Untitled-style semantic scale. */
+  --voit-font-family: var(--font-urbanist), Urbanist, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --voit-font-note-size: 12px;
   --voit-font-note-line: 18px;
   --voit-font-subheadline-size: 12px;
