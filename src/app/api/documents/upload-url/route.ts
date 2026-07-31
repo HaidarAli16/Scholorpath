@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { guardMutation } from "@/lib/api/security";
 
 const uploadSchema = z.object({
   name: z.string().trim().min(1).max(180),
@@ -10,6 +11,8 @@ const uploadSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const blocked = await guardMutation(request, "document-upload", { requests: 20, windowSeconds: 300 });
+  if (blocked) return blocked;
   const parsed = uploadSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "The file is not supported.", issues: parsed.error.flatten() }, { status: 400 });
   const supabase = await createSupabaseServerClient();
@@ -28,4 +31,3 @@ export async function POST(request: Request) {
     metadata: parsed.data,
   });
 }
-

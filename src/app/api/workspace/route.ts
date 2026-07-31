@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { guardMutation } from "@/lib/api/security";
 
 const actionSchema = z.discriminatedUnion("resource", [
   z.object({ resource: z.literal("task"), action: z.enum(["create", "complete", "reopen"]), id: z.string().uuid().optional(), title: z.string().trim().min(2).max(180).optional(), dueAt: z.string().datetime().optional() }),
@@ -65,6 +66,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const blocked = await guardMutation(request, "workspace", { requests: 60, windowSeconds: 60 });
+  if (blocked) return blocked;
   const payload = await request.json().catch(() => null);
   const parsed = actionSchema.safeParse(payload);
   if (!parsed.success) return NextResponse.json({ error: "Invalid workspace action.", issues: parsed.error.flatten() }, { status: 400 });
@@ -76,12 +79,12 @@ export async function POST(request: Request) {
   if (action.resource === "task") {
     if (action.action === "create") {
       if (!action.title) return NextResponse.json({ error: "Task title is required." }, { status: 400 });
-      const result = await supabase.from("tasks").insert({ user_id: user.id, title: action.title, due_at: action.dueAt ?? null, state: "todo", system_generated: false }).select().single();
+      const result = await supabase.rpc("create_personal_task", { p_title: action.title, p_description: null, p_due_at: action.dueAt ?? null, p_impact_level: "medium", p_impact_type: "application_readiness", p_application_id: null, p_estimated_minutes: null });
       return databaseResponse(result);
     }
     if (!action.id) return NextResponse.json({ error: "Task id is required." }, { status: 400 });
     const state = action.action === "complete" ? "completed" : "todo";
-    const result = await supabase.from("tasks").update({ state, completed_at: state === "completed" ? new Date().toISOString() : null }).eq("id", action.id).eq("user_id", user.id).select().single();
+    const result = await supabase.rpc("transition_task", { p_task_id: action.id, p_to_state: state, p_position: null, p_note: null, p_evidence_document_id: null });
     return databaseResponse(result);
   }
 
@@ -143,4 +146,3 @@ function databaseResponse(result: { data: unknown; error: { message: string } | 
   if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
   return NextResponse.json({ ok: true, data: result.data });
 }
-

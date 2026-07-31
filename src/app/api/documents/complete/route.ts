@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { guardMutation } from "@/lib/api/security";
 
 const completeSchema = z.object({
   path: z.string().min(10).max(400),
@@ -11,6 +12,8 @@ const completeSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const blocked = await guardMutation(request, "document-complete", { requests: 20, windowSeconds: 300 });
+  if (blocked) return blocked;
   const parsed = completeSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid document record." }, { status: 400 });
   const supabase = await createSupabaseServerClient();
@@ -19,16 +22,16 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Sign in to save documents." }, { status: 401 });
   if (!parsed.data.path.startsWith(`${user.id}/`)) return NextResponse.json({ error: "Document path is not owned by this account." }, { status: 403 });
 
-  const { data, error } = await supabase.from("documents").insert({
-    user_id: user.id,
-    storage_path: parsed.data.path,
-    name: parsed.data.name,
-    category: parsed.data.category,
-    mime_type: parsed.data.mimeType,
-    size_bytes: parsed.data.sizeBytes,
-    status: "uploaded",
-  }).select().single();
+  const objectName = parsed.data.path.slice(user.id.length + 1);
+  const { data: objects, error: objectError } = await supabase.storage.from("student-documents").list(user.id, { search: objectName, limit: 2 });
+  const object = objects?.find((item) => item.name === objectName);
+  const storedSize = Number(object?.metadata?.size ?? 0);
+  const storedType = String(object?.metadata?.mimetype ?? "");
+  if (objectError || !object || storedSize !== parsed.data.sizeBytes || storedType !== parsed.data.mimeType) {
+    return NextResponse.json({ error: "The uploaded object could not be verified. Upload it again." }, { status: 409 });
+  }
+
+  const { data, error } = await supabase.rpc("register_document", { p_storage_path: parsed.data.path, p_name: parsed.data.name, p_category: parsed.data.category, p_mime_type: parsed.data.mimeType, p_size_bytes: parsed.data.sizeBytes });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true, document: data });
 }
-

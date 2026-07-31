@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { canTransition, calculateReadiness } from "@/modules/tasks/engine";
 import { demoExecutionData } from "@/modules/tasks/demo";
-import { taskStates, type ExecutionTask, type RequirementInput, type TaskState } from "@/modules/tasks/types";
+import { taskStates, type ExecutionTask, type TaskState } from "@/modules/tasks/types";
+import { guardMutation } from "@/lib/api/security";
 
 const payloadSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("create"), title: z.string().trim().min(2).max(180), description: z.string().max(2000).optional(), dueAt: z.string().datetime().nullable().optional(), impactLevel: z.enum(["critical", "high", "medium", "low"]).default("medium"), impactType: z.enum(["eligibility", "application_readiness", "scholarship", "funding", "deadline", "document", "offer", "visa", "profile", "research"]).default("application_readiness"), applicationId: z.string().uuid().nullable().optional(), estimatedMinutes: z.number().int().positive().max(1440).nullable().optional() }),
@@ -36,62 +36,37 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const blocked = await guardMutation(request, "tasks", { requests: 60, windowSeconds: 60 });
+  if (blocked) return blocked;
   const parsed = payloadSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid task action.", issues: parsed.error.flatten() }, { status: 400 });
   const { supabase, user } = await context();
   if (!supabase || !user) return NextResponse.json({ error: "Sign in to save task changes.", demo: true }, { status: 401 });
   const action = parsed.data;
   if (action.action === "create") {
-    const values = { user_id: user.id, title: action.title, description: action.description ?? null, due_at: action.dueAt ?? null, impact_level: action.impactLevel, impact_type: action.impactType, impact_score: { critical: 90, high: 70, medium: 45, low: 20 }[action.impactLevel], application_id: action.applicationId ?? null, estimated_minutes: action.estimatedMinutes ?? null, state: "todo", source_type: "personal", system_generated: false };
-    const result = await supabase.from("tasks").insert(values).select().single();
+    const result = await supabase.rpc("create_personal_task", { p_title: action.title, p_description: action.description ?? null, p_due_at: action.dueAt ?? null, p_impact_level: action.impactLevel, p_impact_type: action.impactType, p_application_id: action.applicationId ?? null, p_estimated_minutes: action.estimatedMinutes ?? null });
     if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
-    await supabase.from("task_events").insert({ user_id: user.id, task_id: result.data.id, actor_user_id: user.id, event_type: "created", to_state: "todo" });
-    if (action.applicationId) await refreshReadiness(supabase, user.id, action.applicationId);
     return NextResponse.json({ ok: true, data: normalizeTask(result.data) });
   }
-  const current = await supabase.from("tasks").select("*,task_impacts(application_id)").eq("id", action.id).eq("user_id", user.id).single();
+  const current = await supabase.from("tasks").select("id,application_id").eq("id", action.id).eq("user_id", user.id).single();
   if (current.error) return NextResponse.json({ error: "Task not found." }, { status: 404 });
   if (action.action === "update") {
-    const patch = { ...(action.title !== undefined && { title: action.title }), ...(action.description !== undefined && { description: action.description }), ...(action.dueAt !== undefined && { due_at: action.dueAt }), ...(action.assignedName !== undefined && { assigned_name: action.assignedName }), ...(action.assignedEmail !== undefined && { assigned_email: action.assignedEmail }), ...(action.impactLevel !== undefined && { impact_level: action.impactLevel }) };
-    const result = await supabase.from("tasks").update(patch).eq("id", action.id).eq("user_id", user.id).select().single();
+    const result = await supabase.rpc("update_task_metadata", { p_task_id: action.id, p_title: action.title ?? null, p_description: action.description ?? null, p_due_at: action.dueAt ?? null, p_due_at_set: action.dueAt !== undefined, p_assigned_name: action.assignedName ?? null, p_assigned_email: action.assignedEmail ?? null, p_impact_level: action.impactLevel ?? null });
     if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
-    await supabase.from("task_events").insert({ user_id: user.id, task_id: action.id, actor_user_id: user.id, event_type: "updated", metadata: patch });
-    if (current.data.application_id) await refreshReadiness(supabase, user.id, current.data.application_id);
     return NextResponse.json({ ok: true, data: normalizeTask(result.data) });
   }
-  const toState = action.state as TaskState; const fromState = current.data.state as TaskState;
-  if (!canTransition(fromState, toState)) return NextResponse.json({ error: `Cannot move a task from ${fromState} to ${toState}.` }, { status: 409 });
-  const values = { state: toState, ...(action.action === "move" && { position: action.position }), completed_at: toState === "completed" ? new Date().toISOString() : null, ...(action.action === "transition" && { completion_note: action.note ?? null, completion_evidence_document_id: action.evidenceDocumentId ?? null }), ...(fromState === "completed" && toState === "todo" && { reopened_count: Number(current.data.reopened_count || 0) + 1 }) };
-  const result = await supabase.from("tasks").update(values).eq("id", action.id).eq("user_id", user.id).select().single();
-  if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
-  await supabase.from("task_events").insert({ user_id: user.id, task_id: action.id, actor_user_id: user.id, event_type: action.action === "move" ? "moved" : "state_changed", from_state: fromState, to_state: toState, metadata: action.action === "transition" ? { note: action.note ?? null } : { position: action.position } });
-  if (toState === "completed" && current.data.source_type === "requirement" && current.data.source_id) {
-    await supabase.from("application_requirements").update({ state: "confirmed" }).eq("id", current.data.source_id).eq("user_id", user.id);
+  const result = await supabase.rpc("transition_task", {
+    p_task_id: action.id,
+    p_to_state: action.state,
+    p_position: action.action === "move" ? action.position : null,
+    p_note: action.action === "transition" ? action.note ?? null : null,
+    p_evidence_document_id: action.action === "transition" ? action.evidenceDocumentId ?? null : null,
+  });
+  if (result.error) {
+    const status = result.error.code === "23514" ? 409 : result.error.code === "P0002" ? 404 : 500;
+    return NextResponse.json({ error: result.error.message }, { status });
   }
-  if (toState === "completed") {
-    const dependents = await supabase.from("task_dependencies").select("task_id").eq("user_id", user.id).eq("depends_on_task_id", action.id).eq("relation", "blocks");
-    const dependentIds = (dependents.data ?? []).map((dependency) => dependency.task_id);
-    if (dependentIds.length) {
-      await supabase.from("tasks").update({ state: "todo" }).eq("user_id", user.id).eq("state", "blocked").in("id", dependentIds);
-      await supabase.from("task_events").insert(dependentIds.map((taskId) => ({ user_id: user.id, task_id: taskId, actor_user_id: user.id, event_type: "dependency_resolved", from_state: "blocked", to_state: "todo", metadata: { completed_dependency_id: action.id } })));
-    }
-  }
-  const affectedApplications = new Set<string>([current.data.application_id, ...((current.data.task_impacts ?? []) as Array<{ application_id: string | null }>).map((impact) => impact.application_id)].filter(Boolean) as string[]);
-  await Promise.all([...affectedApplications].map((applicationId) => refreshReadiness(supabase, user.id, applicationId)));
-  return NextResponse.json({ ok: true, data: normalizeTask(result.data) });
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function refreshReadiness(supabase: any, userId: string, applicationId: string) {
-  const [app, requirements, tasks] = await Promise.all([
-    supabase.from("applications").select("id,title").eq("id", applicationId).eq("user_id", userId).single(),
-    supabase.from("application_requirements").select("*").eq("application_id", applicationId).eq("user_id", userId),
-    supabase.from("tasks").select("*,task_impacts(*)").eq("user_id", userId).or(`application_id.eq.${applicationId},task_impacts.application_id.eq.${applicationId}`),
-  ]);
-  if (app.error || requirements.error || tasks.error) return;
-  const normalized = (tasks.data ?? []).map(normalizeTask) as ExecutionTask[];
-  const readiness = calculateReadiness(applicationId, app.data.title, requirements.data as RequirementInput[], normalized);
-  await supabase.from("application_readiness_snapshots").insert({ user_id: userId, application_id: applicationId, score: readiness.score, confirmed_count: readiness.confirmed_count, total_count: readiness.total_count, blocking_count: readiness.blocking_count, missing_count: readiness.missing_count, breakdown: { overdue_critical_count: readiness.overdue_critical_count, next_task_id: readiness.next_task_id } });
+  return NextResponse.json({ ok: true, data: result.data });
 }
 
 function normalizeTask(row: Record<string, unknown>): ExecutionTask {

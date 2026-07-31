@@ -1,0 +1,2 @@
+-- Intentionally contains no production catalogue records.
+-- Beta data must enter through the source -> fact -> independent review workflow.

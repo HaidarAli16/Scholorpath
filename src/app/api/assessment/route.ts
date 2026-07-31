@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
+import { createHash, randomUUID } from "node:crypto";
 import { generateAssessmentReport } from "@/modules/assessment/engine";
 import { assessmentInputSchema } from "@/modules/assessment/schema";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { guardMutation } from "@/lib/api/security";
+import { evaluateCatalogue } from "@/modules/recommendation/service";
 
 export async function POST(request: Request) {
+  const blocked = await guardMutation(request, "assessment", { requests: 12, windowSeconds: 60 });
+  if (blocked) return blocked;
   const payload = await request.json().catch(() => null);
   const parsed = assessmentInputSchema.safeParse(payload);
 
@@ -17,15 +22,38 @@ export async function POST(request: Request) {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase!.auth.getUser();
     if (user) {
-      const { error: profileError } = await supabase!.from("student_profiles").upsert({ user_id: user.id, first_name: parsed.data.firstName, nationality: parsed.data.nationality, current_country: parsed.data.currentCountry, preferred_currency: parsed.data.budgetCurrency }, { onConflict: "user_id" });
-      if (profileError) return NextResponse.json({ error: "Your profile could not be saved.", detail: profileError.message }, { status: 500 });
-      const { data: assessment, error: assessmentError } = await supabase!.from("assessments").insert({ user_id: user.id, version: 2, status: "completed", answers: parsed.data, completion_percent: 100, completed_at: report.generatedAt }).select("id").single();
-      if (assessmentError) return NextResponse.json({ error: "Your assessment could not be saved.", detail: assessmentError.message }, { status: 500 });
-      const [{ error: reportError }, { error: taskError }] = await Promise.all([
-        supabase!.from("pathway_reports").insert({ assessment_id: assessment.id, user_id: user.id, engine_version: "assessment-2.0.0", rule_snapshot_version: "foundation-2026-07-31", report }),
-        supabase!.from("tasks").insert(report.actionPlan.map((item, index) => ({ user_id: user.id, title: item.title, description: item.detail, state: "todo", priority: item.impact === "critical" ? 1 : item.impact === "high" ? 2 : 3, system_generated: true, estimated_minutes: 15 + index * 10 }))),
-      ]);
-      if (reportError || taskError) return NextResponse.json({ error: "Your report was generated but its workspace could not be completed.", detail: (reportError || taskError)?.message }, { status: 500 });
+      const serialized = JSON.stringify(parsed.data);
+      const requestHash = createHash("sha256").update(serialized).digest("hex");
+      const idempotencyKey = request.headers.get("idempotency-key")?.trim() || randomUUID();
+      const tasks = report.actionPlan.map((item, index) => ({
+        key: item.id,
+        title: item.title,
+        description: item.detail,
+        priority: item.impact === "critical" ? 1 : item.impact === "high" ? 2 : 3,
+        estimated_minutes: 15 + index * 10,
+        impact_type: item.id === "funding-scenarios" ? "funding" : "profile",
+        impact_level: item.impact,
+        impact_score: item.impact === "critical" ? 90 : item.impact === "high" ? 72 : 48,
+        evidence_required: item.id === "academic-proof" ? ["Transcript", "Degree status", "Official grading scale"] : [],
+      }));
+      const { data: submission, error } = await supabase!.rpc("submit_assessment", {
+        p_profile: { first_name: parsed.data.firstName, nationality: parsed.data.nationality, current_country: parsed.data.currentCountry, preferred_currency: parsed.data.budgetCurrency },
+        p_answers: parsed.data,
+        p_report: report,
+        p_tasks: tasks,
+        p_engine_version: "assessment-3.0.0",
+        p_rule_snapshot_version: "foundation-2026-07-31",
+        p_request_hash: requestHash,
+        p_idempotency_key: idempotencyKey,
+      });
+      if (error) return NextResponse.json({ error: "Your assessment could not be saved atomically.", detail: error.message }, { status: 500 });
+      const assessmentId = (submission as { assessment_id?: string } | null)?.assessment_id ?? null;
+      try {
+        const recommendation = await evaluateCatalogue(supabase!, parsed.data as unknown as Record<string, unknown>, { userId: user.id, assessmentId });
+        return NextResponse.json({ ...report, recommendation: { status: "ready", runId: recommendation.runId, resultCount: recommendation.results.length, results: recommendation.results } });
+      } catch {
+        return NextResponse.json({ ...report, recommendation: { status: "queued", resultCount: 0 } });
+      }
     }
   }
 

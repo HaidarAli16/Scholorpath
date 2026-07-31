@@ -24,8 +24,7 @@ const routes: Record<string, string> = {
 
 export default async function PlatformRoute({ params }: { params: Promise<{ slug: string[] }> }) {
   const { slug } = await params;
-  const module = slug[0] === "discover" && slug.length === 2 ? "opportunity" : routes[slug.join("/")];
-  if (!module) notFound();
-  return <ProductApp module={module} />;
+  const activeModule = slug[0] === "discover" && slug.length === 2 ? "opportunity" : routes[slug.join("/")];
+  if (!activeModule) notFound();
+  return <ProductApp module={activeModule} />;
 }
-

@@ -2,10 +2,13 @@ import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { guardMutation } from "@/lib/api/security";
 
 const fileSchema = z.object({ name: z.string().trim().min(1).max(180), mimeType: z.literal("application/pdf"), sizeBytes: z.number().int().positive().max(15 * 1024 * 1024) });
 
 export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }) {
+  const blocked = await guardMutation(request, "reference-upload", { requests: 8, windowSeconds: 300 });
+  if (blocked) return blocked;
   const parsed = fileSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Upload one PDF up to 15 MB." }, { status: 400 });
   const { token } = await params;
@@ -20,4 +23,3 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ path, token: data.token });
 }
-

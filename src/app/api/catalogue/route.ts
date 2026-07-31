@@ -1,0 +1,45 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+
+const querySchema = z.object({
+  type: z.enum(["all", "programme", "scholarship"]).default("all"),
+  country: z.string().trim().min(2).max(3).optional(),
+  q: z.string().trim().max(100).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(24),
+});
+
+export async function GET(request: Request) {
+  if (!isSupabaseConfigured) return NextResponse.json({ mode: "demo", items: [] });
+  const url = new URL(request.url);
+  const parsed = querySchema.safeParse(Object.fromEntries(url.searchParams));
+  if (!parsed.success) return NextResponse.json({ error: "Invalid catalogue query.", issues: parsed.error.flatten() }, { status: 400 });
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return NextResponse.json({ error: "Catalogue is unavailable." }, { status: 503 });
+  const { type, country, q, limit } = parsed.data;
+
+  const programmeQuery = () => {
+    let query = supabase.from("programmes").select("id,slug,title,institution_name,country_code,level,field_family,intake_label,deadline_at,deadline_timezone,tuition_amount,tuition_currency,application_url,last_verified_at,next_review_at,attributes").eq("state", "published").order("deadline_at", { ascending: true, nullsFirst: false }).limit(limit);
+    if (country) query = query.eq("country_code", country.toUpperCase());
+    if (q) query = query.ilike("title", `%${q.replaceAll("%", "\\%").replaceAll("_", "\\_")}%`);
+    return query;
+  };
+  const scholarshipQuery = () => {
+    let query = supabase.from("scholarships").select("id,slug,title,provider_name,country_code,cycle_label,opens_at,deadline_at,deadline_timezone,award_type,award_value,application_url,last_verified_at,next_review_at,attributes").eq("state", "published").order("deadline_at", { ascending: true, nullsFirst: false }).limit(limit);
+    if (country) query = query.eq("country_code", country.toUpperCase());
+    if (q) query = query.ilike("title", `%${q.replaceAll("%", "\\%").replaceAll("_", "\\_")}%`);
+    return query;
+  };
+  const [programmes, scholarships] = await Promise.all([
+    type === "scholarship" ? Promise.resolve({ data: [], error: null }) : programmeQuery(),
+    type === "programme" ? Promise.resolve({ data: [], error: null }) : scholarshipQuery(),
+  ]);
+  const error = programmes.error || scholarships.error;
+  if (error) return NextResponse.json({ error: "Catalogue could not be loaded.", detail: error.message }, { status: 500 });
+  const items = [
+    ...(programmes.data ?? []).map((item) => ({ ...item, entityType: "programme", provider: item.institution_name })),
+    ...(scholarships.data ?? []).map((item) => ({ ...item, entityType: "scholarship", provider: item.provider_name })),
+  ].sort((a, b) => String(a.deadline_at ?? "9999").localeCompare(String(b.deadline_at ?? "9999"))).slice(0, limit);
+  return NextResponse.json({ mode: "live", items, count: items.length });
+}
