@@ -11,7 +11,6 @@ import {
   Clock3,
   FileCheck2,
   Flag,
-  Globe2,
   GraduationCap,
   LayoutDashboard,
   Lightbulb,
@@ -24,7 +23,6 @@ import {
   Sparkles,
   Target,
   UserRound,
-  WalletCards,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -40,7 +38,6 @@ import {
   residenceOptions,
   type AssessmentInput,
   type AssessmentReport,
-  type OriginCountry,
   type PathwayLane,
 } from "@/modules/assessment/types";
 

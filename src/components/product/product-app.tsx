@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   AlertCircle,
@@ -15,9 +16,7 @@ import {
   Clock3,
   Command,
   Database,
-  Download,
   ExternalLink,
-  Eye,
   FileCheck2,
   FileText,
   Filter,
@@ -32,18 +31,14 @@ import {
   Mail,
   Menu,
   MoreHorizontal,
-  PanelLeftClose,
-  Pencil,
   Plus,
   RefreshCw,
   Search,
-  Send,
   Settings,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
   Target,
-  Trash2,
   Upload,
   UserRound,
   Users,
@@ -51,8 +46,9 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { applications, documents, opportunities, sourceQueue, tasks } from "@/modules/product/demo-data";
+import { applications, documents, opportunities, sourceQueue, tasks, type Opportunity } from "@/modules/product/demo-data";
 import { useWorkspace } from "@/lib/use-workspace";
+import { useOpportunities } from "@/lib/use-opportunities";
 import { TaskCommandCenter } from "@/components/tasks/task-command-center";
 import { OpportunityDetail, SettingsCenter, StudentProfileCenter } from "@/components/product/frontend-completion";
 import { uploadStudentDocument } from "@/lib/upload-document";
@@ -81,6 +77,8 @@ export function ProductApp({ module }: ProductAppProps) {
   const [query, setQuery] = useState("");
   const [commandOpen, setCommandOpen] = useState(false);
   const backend = useWorkspace();
+  const catalogue = useOpportunities(backend.data?.portfolios);
+  const opportunityItems = catalogue.mode === "live" ? catalogue.items : opportunities;
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
@@ -144,9 +142,9 @@ export function ProductApp({ module }: ProductAppProps) {
         </div>
 
         <div className="product-page">
-          {module === "today" && <Today />}
-          {module === "discover" && <Discover query={query} setQuery={setQuery} />}
-          {module === "portfolio" && <Portfolio />}
+          {module === "today" && <Today items={opportunityItems} profile={backend.data?.profile} completion={backend.data?.assessment?.completion_percent} />}
+          {module === "discover" && <Discover query={query} setQuery={setQuery} items={opportunityItems} catalogueMode={catalogue.mode} catalogueError={catalogue.error} backend={backend} origin={backend.data?.profile?.nationality} intake={backend.data?.assessment?.answers?.intake} />}
+          {module === "portfolio" && <Portfolio items={opportunityItems} live={catalogue.mode === "live"} />}
           {module === "applications" && <Applications />}
           {module === "workspace" && <Tasks />}
           {module === "documents" && <Documents />}
@@ -154,7 +152,7 @@ export function ProductApp({ module }: ProductAppProps) {
           {module === "funding" && <Funding />}
           {module === "offers" && <Offers />}
           {module === "profile" && <StudentProfileCenter />}
-          {module === "opportunity" && <OpportunityDetail id={pathname.split("/").pop() || ""} />}
+          {module === "opportunity" && <OpportunityDetail id={pathname.split("/").pop() || ""} opportunity={opportunityItems.find((item) => item.id === pathname.split("/").pop())} />}
           {module === "settings" && <SettingsCenter />}
           {module === "settings-notifications" && <SettingsCenter section="notifications" />}
           {module === "settings-privacy" && <SettingsCenter section="privacy" />}
@@ -232,9 +230,13 @@ function PageIntro({ eyebrow, title, description, action }: { eyebrow: string; t
   );
 }
 
-function Today() {
+function Today({ items, profile, completion }: { items: Opportunity[]; profile?: { first_name?: string; nationality?: string; current_country?: string } | null; completion?: number }) {
   const todayLabel = new Intl.DateTimeFormat(undefined, { weekday: "long", day: "numeric", month: "long" }).format(new Date());
-  const [selectedFit, setSelectedFit] = useState<(typeof opportunities)[number] | null>(null);
+  const [selectedFit, setSelectedFit] = useState<Opportunity | null>(null);
+  const studentName = profile?.first_name || "Student";
+  const profileCompletion = completion ?? 0;
+  const verifiedRoutes = items.filter((item) => item.match === "Confirmed match").length;
+  const openRoutes = items.filter((item) => item.match !== "Confirmed match").length;
 
   useEffect(() => {
     if (!selectedFit) return;
@@ -249,16 +251,16 @@ function Today() {
 
   return (
     <>
-      <header className="reference-dashboard-head"><div><span className="product-eyebrow">{todayLabel}</span><h1>Welcome, Haidar</h1><p>Your personal scholarship dashboard</p></div><span className="fit-freshness"><i /> Intelligence updated today</span></header>
+      <header className="reference-dashboard-head"><div><span className="product-eyebrow">{todayLabel}</span><h1>Welcome, {studentName}</h1><p>Your personal scholarship dashboard</p></div><span className="fit-freshness"><i /> Intelligence updated today</span></header>
 
       <div className="reference-dashboard-layout">
         <div className="reference-dashboard-main">
           <section className="reference-overview-grid">
             <article className="student-profile-card">
               <div className="student-profile-card__head"><span>Profile</span><Link href="/profile"><Settings size={17} /></Link></div>
-              <div className="student-profile-card__portrait"><img src="/images/student-profile-haidar.png" alt="Fictional student profile portrait" /><i>72%</i></div>
-              <h2>Haidar Ali</h2><p>Computing graduate · Pakistan</p>
-              <div className="student-profile-card__stats"><span><strong>14</strong><small>Verified</small></span><span><strong>3</strong><small>Gaps</small></span><span><strong>3</strong><small>Routes</small></span></div>
+              <div className="student-profile-card__portrait"><Image src="/images/student-profile-haidar.png" alt="Student profile portrait" width={96} height={96} priority /><i>{profileCompletion}%</i></div>
+              <h2>{studentName}</h2><p>{profile?.nationality || profile?.current_country || "Profile in progress"}</p>
+              <div className="student-profile-card__stats"><span><strong>{verifiedRoutes}</strong><small>Confirmed</small></span><span><strong>{openRoutes}</strong><small>Open checks</small></span><span><strong>{items.length}</strong><small>Routes</small></span></div>
             </article>
             <div className="reference-gradient-stack">
               <div className="reference-gradient-pair">
@@ -287,7 +289,7 @@ function Today() {
         </div>
 
         <aside className="reference-dashboard-aside">
-          <section className="upcoming-deadlines-card"><div className="reference-aside-head"><h2>Upcoming deadlines</h2><CalendarDays size={18} /></div>{opportunities.slice(0, 4).map((item) => <button key={item.id} onClick={() => setSelectedFit(item)}><time><small>{item.deadline.split(" ")[1]}</small><strong>{item.deadline.split(" ")[0]}</strong></time><span><strong>{item.title}</strong><small>{item.provider}</small></span><ArrowRight size={15} /></button>)}<Link href="/workspace">See full calendar <ArrowRight size={14} /></Link></section>
+          <section className="upcoming-deadlines-card"><div className="reference-aside-head"><h2>Upcoming deadlines</h2><CalendarDays size={18} /></div>{items.slice(0, 4).map((item) => <button key={item.id} onClick={() => setSelectedFit(item)}><time><small>{item.deadline.split(" ")[1] || ""}</small><strong>{item.deadline.split(" ")[0]}</strong></time><span><strong>{item.title}</strong><small>{item.provider}</small></span><ArrowRight size={15} /></button>)}{!items.length && <p>No verified deadlines are published yet.</p>}<Link href="/workspace">See full calendar <ArrowRight size={14} /></Link></section>
           <section className="developed-areas-card"><div className="reference-aside-head"><div><h2>Profile alignment</h2><p>Evidence by decision area</p></div><Sparkles size={18} /></div><AlignmentBar label="Academic" state="Verified" width="100%" tone="blue" /><AlignmentBar label="Subject" state="Verified" width="100%" tone="blue" /><AlignmentBar label="Funding" state="Conditional" width="62%" tone="amber" /><AlignmentBar label="Language" state="Missing" width="38%" tone="coral" /></section>
         </aside>
       </div>
@@ -298,7 +300,7 @@ function Today() {
           <svg className="recommendation-flow__lines" viewBox="0 0 760 330" preserveAspectRatio="none" aria-hidden="true"><path className="flow-line flow-line--blue" d="M176 165 C235 165 228 70 292 70" /><path className="flow-line flow-line--green" d="M176 165 C235 165 228 165 292 165" /><path className="flow-line flow-line--amber" d="M176 165 C235 165 228 260 292 260" /><path className="flow-line flow-line--blue" d="M445 70 C505 70 496 58 552 58" /><path className="flow-line flow-line--green" d="M445 165 C505 165 496 165 552 165" /><path className="flow-line flow-line--amber" d="M445 260 C505 260 496 272 552 272" /><circle cx="176" cy="165" r="4" /><circle cx="292" cy="70" r="4" /><circle cx="292" cy="165" r="4" /><circle cx="292" cy="260" r="4" /><circle cx="552" cy="58" r="4" /><circle cx="552" cy="165" r="4" /><circle cx="552" cy="272" r="4" /></svg>
           <div className="flow-column flow-column--profile"><span className="flow-column__label">Your profile</span><article className="flow-profile-node"><div className="flow-profile-node__ring">72%</div><h3>Haidar Ali</h3><p>Pakistan · Computing</p><div><span><Check size={13} /> 14 verified</span><span><AlertCircle size={13} /> 3 gaps</span></div></article></div>
           <div className="flow-column flow-column--evidence"><span className="flow-column__label">Evidence gates</span><FlowGate icon={GraduationCap} title="Academic fit" detail="Degree aligned" state="Verified" tone="green" /><FlowGate icon={FileCheck2} title="Mathematics" detail="Module proof needed" state="Review" tone="amber" /><FlowGate icon={WalletCards} title="Funding" detail="Award dependent" state="Conditional" tone="blue" /></div>
-          <div className="flow-column flow-column--routes"><span className="flow-column__label">Live pathways</span>{opportunities.slice(0, 3).map((item, index) => <FlowRoute key={item.id} item={item} rank={index + 1} onOpen={() => setSelectedFit(item)} />)}</div>
+          <div className="flow-column flow-column--routes"><span className="flow-column__label">Live pathways</span>{items.slice(0, 3).map((item, index) => <FlowRoute key={item.id} item={item} rank={index + 1} onOpen={() => setSelectedFit(item)} />)}</div>
         </div>
       </section>
 
@@ -311,20 +313,28 @@ function Today() {
   );
 }
 
-function Discover({ query, setQuery }: { query: string; setQuery: (value: string) => void }) {
+function Discover({ query, setQuery, items, catalogueMode, catalogueError, backend, origin, intake }: { query: string; setQuery: (value: string) => void; items: Opportunity[]; catalogueMode: "loading" | "demo" | "live"; catalogueError: string | null; backend: ReturnType<typeof useWorkspace>; origin?: string; intake?: string }) {
   const [kind, setKind] = useState("All");
   const [sort, setSort] = useState("Recommended");
   const [fundingOnly, setFundingOnly] = useState(true);
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [selected, setSelected] = useState<(typeof opportunities)[number] | null>(null);
+  const [selected, setSelected] = useState<Opportunity | null>(null);
   const [searchSaved, setSearchSaved] = useState(false);
-  const [saved, setSaved] = useState(() => new Set(opportunities.filter((item) => item.saved).map((item) => item.id)));
+  const [saved, setSaved] = useState(() => new Set(items.filter((item) => item.saved).map((item) => item.id)));
+  useEffect(() => { setSaved(new Set(items.filter((item) => item.saved).map((item) => item.id))); }, [items]);
   const filtered = useMemo(() => {
-    const rows = opportunities.filter((item) => (kind === "All" || item.kind === kind) && `${item.title} ${item.provider} ${item.country}`.toLowerCase().includes(query.toLowerCase()) && (!fundingOnly || item.kind === "Scholarship" || item.value.toLowerCase().includes("no tuition")) && (!verifiedOnly || item.freshness === "Verified"));
-    return [...rows].sort((a, b) => sort === "Deadline" ? new Date(a.deadline).getTime() - new Date(b.deadline).getTime() : sort === "Funding" ? Number(b.value.toLowerCase().includes("fund")) - Number(a.value.toLowerCase().includes("fund")) : opportunities.indexOf(a) - opportunities.indexOf(b));
-  }, [fundingOnly, kind, query, sort, verifiedOnly]);
-  const toggleSaved = (id: string) => setSaved((current) => { const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next; });
+    const rows = items.filter((item) => (kind === "All" || item.kind === kind) && `${item.title} ${item.provider} ${item.country}`.toLowerCase().includes(query.toLowerCase()) && (!fundingOnly || item.kind === "Scholarship" || item.value.toLowerCase().includes("no tuition")) && (!verifiedOnly || item.freshness === "Verified"));
+    return [...rows].sort((a, b) => sort === "Deadline" ? new Date(a.deadlineAt ?? "9999-12-31").getTime() - new Date(b.deadlineAt ?? "9999-12-31").getTime() : sort === "Funding" ? Number(b.value.toLowerCase().includes("fund")) - Number(a.value.toLowerCase().includes("fund")) : items.indexOf(a) - items.indexOf(b));
+  }, [fundingOnly, items, kind, query, sort, verifiedOnly]);
+  const toggleSaved = async (item: Opportunity) => {
+    const wasSaved = saved.has(item.id);
+    setSaved((current) => { const next = new Set(current); if (wasSaved) next.delete(item.id); else next.add(item.id); return next; });
+    if (catalogueMode !== "live") return;
+    if (!backend.authenticated) { window.location.href = "/auth?next=/discover"; return; }
+    try { await backend.act({ resource: "portfolio", action: wasSaved ? "remove" : "save", entityType: item.kind === "Programme" ? "programme" : "scholarship", entityId: item.id }); }
+    catch { setSaved((current) => { const next = new Set(current); if (wasSaved) next.add(item.id); else next.delete(item.id); return next; }); }
+  };
   return (
     <>
       <PageIntro eyebrow="Verified discovery" title="Find routes you can actually act on." description="Search programmes and scholarships with visible rules, conditions, deadlines, and source freshness." action={<button className="product-button product-button--secondary" onClick={() => { setSearchSaved(true); window.setTimeout(() => setSearchSaved(false), 2400); }}><Bell size={16} /> {searchSaved ? "Search saved" : "Save this search"}</button>} />
@@ -337,38 +347,42 @@ function Discover({ query, setQuery }: { query: string; setQuery: (value: string
         <div><span className="filter-panel__icon"><Filter size={18} /></span><p><strong>Refine verified routes</strong><small>Changes apply immediately to the result set.</small></p></div>
         <label><input type="checkbox" checked={fundingOnly} onChange={(event) => setFundingOnly(event.target.checked)} /><span><strong>Funding available</strong><small>Scholarships or tuition-light routes</small></span></label>
         <label><input type="checkbox" checked={verifiedOnly} onChange={(event) => setVerifiedOnly(event.target.checked)} /><span><strong>Current sources only</strong><small>Hide records with review due</small></span></label>
-        <label><input type="checkbox" checked readOnly /><span><strong>Pakistan eligible</strong><small>Based on citizenship profile</small></span></label>
+        <label><input type="checkbox" checked readOnly /><span><strong>{origin ? `${origin} profile` : "Origin eligibility"}</strong><small>Based on citizenship profile</small></span></label>
         <button onClick={() => { setFundingOnly(false); setVerifiedOnly(false); }}>Reset</button>
       </section>}
-      <div className="active-filters"><span>Pakistan eligible <Check size={12} /></span>{fundingOnly && <span>Funding available <button onClick={() => setFundingOnly(false)}><X size={12} /></button></span>}{verifiedOnly && <span>Current sources <button onClick={() => setVerifiedOnly(false)}><X size={12} /></button></span>}<span>2027 intake <Check size={12} /></span></div>
-      <div className="results-meta"><strong>{filtered.length} researched routes</strong><span>Ranked after eligibility checks · Updated 30 Jul 2026</span></div>
-      <div className="opportunity-grid opportunity-grid--results">{filtered.map((item) => <OpportunityCard key={item.id} item={item} detailed saved={saved.has(item.id)} onSave={() => toggleSaved(item.id)} onOpen={() => setSelected(item)} />)}</div>
+      <div className="active-filters"><span>{origin ? `${origin} profile` : "Origin eligibility"} <Check size={12} /></span>{fundingOnly && <span>Funding available <button onClick={() => setFundingOnly(false)}><X size={12} /></button></span>}{verifiedOnly && <span>Current sources <button onClick={() => setVerifiedOnly(false)}><X size={12} /></button></span>}{intake && <span>{intake} <Check size={12} /></span>}</div>
+      <div className="results-meta"><strong>{filtered.length} researched routes</strong><span>{catalogueMode === "live" ? "Live catalogue · ranked after eligibility checks" : catalogueMode === "loading" ? "Loading verified catalogue…" : "Demo catalogue · connect Supabase for live data"}</span></div>
+      {catalogueError && <div className="auth-message auth-message--error">{catalogueError}</div>}
+      <div className="opportunity-grid opportunity-grid--results">{filtered.map((item) => <OpportunityCard key={item.id} item={item} detailed saved={saved.has(item.id)} onSave={() => void toggleSaved(item)} onOpen={() => setSelected(item)} />)}</div>
       {filtered.length === 0 && <EmptyState icon={Search} title="No routes match these filters" text="Remove one condition or broaden the subject. ScholarPath will preserve the rest of your search." action="Reset filters" onAction={() => { setQuery(""); setFundingOnly(false); setVerifiedOnly(false); setKind("All"); }} />}
       {selected && <FitDetailModal item={selected} onClose={() => setSelected(null)} />}
     </>
   );
 }
 
-function Portfolio() {
-  const [selected, setSelected] = useState(() => new Set(opportunities.slice(0, 2).map((item) => item.id)));
+function Portfolio({ items, live }: { items: Opportunity[]; live: boolean }) {
+  const portfolioItems = live ? items.filter((item) => item.saved) : items;
+  const [selected, setSelected] = useState(() => new Set(portfolioItems.slice(0, 2).map((item) => item.id)));
   const [compareOpen, setCompareOpen] = useState(false);
-  const [detail, setDetail] = useState<(typeof opportunities)[number] | null>(null);
-  const toggle = (id: string) => setSelected((current) => { const next = new Set(current); next.has(id) ? next.delete(id) : next.size < 4 && next.add(id); return next; });
-  const selectedItems = opportunities.filter((item) => selected.has(item.id));
+  const [detail, setDetail] = useState<Opportunity | null>(null);
+  useEffect(() => { setSelected((current) => current.size ? current : new Set(portfolioItems.slice(0, 2).map((item) => item.id))); }, [portfolioItems]);
+  const toggle = (id: string) => setSelected((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else if (next.size < 4) next.add(id); return next; });
+  const selectedItems = portfolioItems.filter((item) => selected.has(item.id));
   return (
     <>
       <PageIntro eyebrow="Decision workspace" title="Build a balanced application portfolio." description="Compare academic alignment, funding dependence, deadlines, and unresolved evidence without pretending any route is guaranteed." action={<Link href="/discover" className="product-button product-button--primary"><Plus size={16} /> Add opportunity</Link>} />
       <div className="portfolio-summary">
-        <div><span>{opportunities.length}</span><p><strong>Saved routes</strong><small>2 programmes · 2 scholarships</small></p></div>
+        <div><span>{portfolioItems.length}</span><p><strong>Saved routes</strong><small>{portfolioItems.filter((item) => item.kind === "Programme").length} programmes · {portfolioItems.filter((item) => item.kind === "Scholarship").length} scholarships</small></p></div>
         <div><span>2</span><p><strong>Funding-first</strong><small>Both remain conditional</small></p></div>
         <div><span>1</span><p><strong>Review due</strong><small>Cycle source needs refresh</small></p></div>
         <button disabled={selected.size < 2} onClick={() => setCompareOpen(true)} className="product-button product-button--secondary">Compare {selected.size || "selected"}</button>
       </div>
       <div className="portfolio-guidance"><Info size={18} /><span><strong>Your shortlist is concentrated in Data and AI.</strong><small>Add one lower-cost route with current academic rules to reduce funding and source risk.</small></span><Link href="/discover">Find alternatives <ArrowRight size={15} /></Link></div>
+      {live && portfolioItems.length === 0 && <EmptyState icon={Heart} title="Your portfolio is ready for its first route" text="Save a programme or scholarship from Discover. It will appear here with its live eligibility, deadline, and evidence state." action="Explore verified routes" onAction={() => { window.location.href = "/discover"; }} />}
       {["Realistic", "Funding-first", "Needs research"].map((group, groupIndex) => (
-        <section className="portfolio-group" key={group}>
+        portfolioItems.length > 0 && <section className="portfolio-group" key={group}>
           <div className="portfolio-group__head"><div><h2>{group}</h2><span>{groupIndex === 0 ? "Evidence is broadly aligned; conditions remain" : groupIndex === 1 ? "Award success is essential to affordability" : "Promising, but source evidence is incomplete"}</span></div><Status text={groupIndex === 0 ? "2 routes" : "1 route"} /></div>
-          <div className="portfolio-rows">{opportunities.slice(groupIndex === 0 ? 0 : groupIndex + 1, groupIndex === 0 ? 2 : groupIndex + 2).map((item) => <PortfolioRow key={item.id} item={item} checked={selected.has(item.id)} onToggle={() => toggle(item.id)} onOpen={() => setDetail(item)} />)}</div>
+          <div className="portfolio-rows">{portfolioItems.slice(groupIndex === 0 ? 0 : groupIndex + 1, groupIndex === 0 ? 2 : groupIndex + 2).map((item) => <PortfolioRow key={item.id} item={item} checked={selected.has(item.id)} onToggle={() => toggle(item.id)} onOpen={() => setDetail(item)} />)}</div>
         </section>
       ))}
       {compareOpen && <PortfolioCompare items={selectedItems} onClose={() => setCompareOpen(false)} />}
@@ -475,27 +489,6 @@ function Offers() {
     </>
   );
 }
-function Profile() {
-  const [drawer, setDrawer] = useState<DetailData | null>(null);
-  const openSection = (title: string, state: string, detail: string) => setDrawer({ eyebrow: `Profile evidence · ${state}`, title, description: detail, sections: [{ title: "What the system uses", items: ["Your confirmed answer", "Linked evidence and its review state", "Rules and routes affected by a change"] }, { title: "Change impact", items: ["Relevant matches are recalculated", "Existing application facts are flagged for review", "No acceptance probability is generated"] }], primary: state === "Missing" ? "Add evidence" : "Review answers" });
-  return (
-    <>
-      <PageIntro eyebrow="Profile & evidence" title="What your plan can prove." description="Keep facts separate from assumptions. Updating a high-impact answer shows which routes and rules need re-evaluation." action={<Link className="product-button product-button--primary" href="/"><Sparkles size={16} /> Reassess pathway</Link>} />
-      <div className="profile-layout">
-        <aside className="profile-score"><div className="score-ring"><strong>72%</strong></div><h3>Profile completeness</h3><p>Three evidence gaps affect current applications.</p><button className="product-button product-button--secondary" onClick={() => openSection("Priority evidence gaps", "Action required", "Resolve the highest-impact gaps first.")}>Review gaps</button><div className="profile-priority"><span><AlertCircle size={14} /> English test record</span><span><FileCheck2 size={14} /> Mathematics evidence</span><span><WalletCards size={14} /> Funding proof</span></div></aside>
-        <section className="profile-sections">
-          <ProfileSection icon={UserRound} title="Identity & origin" state="Complete" detail="Pakistan · Pakistani citizen · Lahore timezone" onOpen={openSection} />
-          <ProfileSection icon={GraduationCap} title="Academic record" state="Needs evidence" detail="BS Computer Science · 3.42/4.00 · transcript uploaded" onOpen={openSection} />
-          <ProfileSection icon={FileCheck2} title="English evidence" state="Missing" detail="Planned IELTS · no test record uploaded" onOpen={openSection} />
-          <ProfileSection icon={Target} title="Goals & intake" state="Complete" detail="Master’s · Data/AI · 2027 intake · UK/Germany/Europe" onOpen={openSection} />
-          <ProfileSection icon={WalletCards} title="Funding reality" state="Review" detail="Major funding required · PKR 3.4m contribution" onOpen={openSection} />
-        </section>
-      </div>
-      {drawer && <DetailDrawer data={drawer} onClose={() => setDrawer(null)} onPrimary={() => setDrawer(null)} />}
-    </>
-  );
-}
-
 function Notifications() {
   const [filter, setFilter] = useState("All");
   const [read, setRead] = useState<Set<string>>(new Set());
@@ -578,14 +571,6 @@ function WorkspaceTabs({ active }: { active: string }) {
   return <nav className="workspace-tabs" aria-label="Workspace sections">{workspaceNav.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className={active === label ? "active" : ""}><Icon size={15} /> {label}</Link>)}</nav>;
 }
 
-function Signal({ label, state, tone, width }: { label: string; state: string; tone: string; width: string }) {
-  return <div className="pathway-signal"><span><small>{label}</small><strong>{state}</strong></span><i><b className={`signal-${tone}`} style={{ width }} /></i></div>;
-}
-
-function PathStat({ icon: Icon, value, label, detail, tone }: { icon: typeof Target; value: string; label: string; detail: string; tone: string }) {
-  return <article className="pathway-stat"><span className={`pathway-stat__icon pathway-stat__icon--${tone}`}><Icon size={18} /></span><div><strong>{value}</strong><span>{label}</span><small>{detail}</small></div></article>;
-}
-
 function FlowGate({ icon: Icon, title, detail, state, tone }: { icon: typeof GraduationCap; title: string; detail: string; state: string; tone: string }) {
   return <article className={`flow-gate flow-gate--${tone}`}><span><Icon size={16} /></span><div><strong>{title}</strong><small>{detail}</small></div><em>{state}</em></article>;
 }
@@ -599,62 +584,9 @@ function FlowRoute({ item, rank, onOpen }: { item: (typeof opportunities)[number
   return <button className="flow-route" onClick={onOpen}><span className="flow-route__rank">0{rank}</span><span className="flow-route__copy"><small>{item.flag} · {rank === 1 ? "Strongest" : rank === 2 ? "Alternative" : "Funding-first"}</small><strong>{item.title}</strong><em>{item.provider}</em></span><span className={`flow-route__state flow-route__state--${state}`}><i /></span><ArrowRight size={15} /></button>;
 }
 
-function RadarRoute({ item, rank, onOpen }: { item: (typeof opportunities)[number]; rank: number; onOpen: () => void }) {
-  const state = item.match === "Confirmed match" ? "aligned" : item.match === "Conditional match" ? "conditional" : "unknown";
-  const signalLabel = state === "aligned" ? "Verified" : state === "conditional" ? "Conditional" : "Verify first";
-  return (
-    <button className="radar-route" onClick={onOpen}>
-      <span className="radar-route__rank">0{rank}</span>
-      <span className="radar-route__country">{item.flag}</span>
-      <span className="radar-route__copy"><small>{rank === 1 ? "Strongest route" : rank === 2 ? "Strong alternative" : "Funding-first"}</small><strong>{item.title}</strong><em>{item.provider} · {item.country}</em></span>
-      <span className="radar-route__signals" aria-label={`${signalLabel} evidence pattern`}><i className="aligned" /><i className="aligned" /><i className={state === "unknown" ? "unknown" : "conditional"} /><i className="unknown" /></span>
-      <span className={`fit-state fit-state--${state}`}><i /> {signalLabel}</span>
-      <ArrowRight size={16} />
-    </button>
-  );
-}
-
 function PlanMove({ task, index }: { task: (typeof tasks)[number]; index: number }) {
   const tone = task.state === "To do" ? "blue" : task.state === "In progress" ? "green" : "amber";
   return <article className="plan-move"><span className={`plan-move__number plan-move__number--${tone}`}>0{index}</span><div><small>{task.context}</small><strong>{task.title}</strong><span>{task.state} · {task.due}</span></div><Link href="/workspace" aria-label={`Open ${task.title}`}><ArrowRight size={15} /></Link></article>;
-}
-
-function DashboardMetric({ icon: Icon, label, value, note, tone, progress }: { icon: typeof UserRound; label: string; value: string; note: string; tone: string; progress?: number }) {
-  return <article className="dashboard-metric"><span className={`dashboard-metric__icon dashboard-metric__icon--${tone}`}><Icon size={18} /></span><div><small>{label}</small><strong>{value}</strong><em>{note}</em></div>{progress !== undefined && <i><b style={{ width: `${progress}%` }} /></i>}</article>;
-}
-
-function DashboardOpportunity({ item, onOpen }: { item: (typeof opportunities)[number]; onOpen: () => void }) {
-  const tone = item.match === "Confirmed match" ? "green" : item.match === "Conditional match" ? "amber" : "slate";
-  return <button className="dashboard-opportunity" onClick={onOpen}><span className="country-mark">{item.flag}</span><span><strong>{item.title}</strong><small>{item.provider} · {item.kind}</small></span><span className={`status-pill status-pill--${tone}`}>{item.match.replace(" match", "")}</span><time><strong>{item.deadline.split(" ").slice(0, 2).join(" ")}</strong><small>Deadline</small></time><ArrowRight size={16} /></button>;
-}
-
-function DashboardFit({ item, rank, onOpen }: { item: (typeof opportunities)[number]; rank: number; onOpen: () => void }) {
-  const state = item.match === "Confirmed match" ? "aligned" : item.match === "Conditional match" ? "conditional" : "unknown";
-  return <button className="dashboard-fit" onClick={onOpen}><span className="fit-rank">{rank}</span><span><small>{rank === 1 ? "Strongest fit" : rank === 2 ? "Alternative" : "Funding-first"}</small><strong>{item.country}</strong><em>{item.title}</em></span><span className={`fit-state fit-state--${state}`}><i /> {item.match.replace(" match", "")}</span><span className="dashboard-fit__meter"><i className="aligned" /><i className="aligned" /><i className={state === "unknown" ? "unknown" : "conditional"} /><i className="unknown" /></span><ArrowRight size={15} /></button>;
-}
-
-function FitOverviewCard({ item, rank, onOpen }: { item: (typeof opportunities)[number]; rank: number; onOpen: () => void }) {
-  const state = item.match === "Confirmed match" ? "aligned" : item.match === "Conditional match" ? "conditional" : "unknown";
-  const label = rank === 1 ? "Strongest current fit" : rank === 2 ? "Promising alternative" : "Funding-first option";
-  return (
-    <article className={`fit-card fit-card--${state}`}>
-      <div className="fit-card__top">
-        <span className="fit-rank">{rank}</span>
-        <span className={`fit-state fit-state--${state}`}><i /> {item.match.replace(" match", "")}</span>
-        <button onClick={() => window.location.href = "/portfolio"} aria-label={`Save ${item.title}`}><Heart size={17} fill={item.saved ? "currentColor" : "none"} /></button>
-      </div>
-      <span className="product-eyebrow">{label}</span>
-      <h3>{item.title}</h3>
-      <p>{item.provider} · {item.country}</p>
-      <div className="fit-card__signals">
-        {item.reasons.slice(0, 2).map((reason) => <span key={reason}><Check size={13} /> {reason}</span>)}
-      </div>
-      <div className="fit-card__meter" aria-label={`${item.match}; evidence alignment overview`}>
-        <i className="aligned" /><i className="aligned" /><i className={state === "unknown" ? "unknown" : "conditional"} /><i className="unknown" />
-      </div>
-      <div className="fit-card__bottom"><span><CalendarDays size={14} /> {item.deadline}</span><button onClick={onOpen}>See why it fits <ArrowRight size={14} /></button></div>
-    </article>
-  );
 }
 
 function FitDetailModal({ item, onClose }: { item: (typeof opportunities)[number]; onClose: () => void }) {
@@ -737,10 +669,6 @@ function PortfolioCompare({ items, onClose }: { items: (typeof opportunities)[nu
 function Metric({ label, value, note, tone }: { label: string; value: string; note: string; tone: string }) { return <div className={`metric metric--${tone}`}><span>{label}</span><strong>{value}</strong><small>{note}</small></div>; }
 function PanelHead({ title, meta }: { title: string; meta: string }) { return <div className="panel-head"><h3>{title}</h3><span>{meta}</span></div>; }
 
-function TaskRow({ task, large = false, completed = false, onComplete, onOpen }: { task: (typeof tasks)[number]; large?: boolean; completed?: boolean; onComplete?: () => void; onOpen?: () => void }) {
-  return <div className={`task-row ${large ? "task-row--large" : ""} ${completed ? "is-complete" : ""}`}><button className="task-check" onClick={onComplete} aria-label={`${completed ? "Reopen" : "Complete"} ${task.title}`}><Check size={13} /></button><button className="task-row__main" onClick={onOpen}><strong>{task.title}</strong><small>{task.context}</small></button><Status text={completed ? "Completed" : task.state} /><time>{task.due}</time><button className="icon-control" onClick={onOpen}><ArrowRight size={16} /></button></div>;
-}
-function MiniApplication({ item }: { item: (typeof applications)[number] }) { const progress = Math.round((item.done / item.total) * 100); return <Link href="/applications"><span className={`app-dot app-dot--${item.tone}`} /><span><strong>{item.title}</strong><small>{item.provider}</small><div><i style={{ width: `${progress}%` }} /></div></span><em>{progress}%</em></Link>; }
 function Status({ text }: { text: string }) { const tone = text.includes("Uploaded") || text.includes("Confirmed") || text.includes("covered") || text.includes("Complete") ? "green" : text.includes("Missing") || text.includes("Blocked") || text.includes("Conflict") || text.includes("Action") ? "red" : text.includes("review") || text.includes("Waiting") || text.includes("Conditional") ? "amber" : "blue"; return <span className={`status-pill status-pill--${tone}`}>{text}</span>; }
 function Requirement({ title, detail, state, onOpen }: { title: string; detail: string; state: string; onOpen?: () => void }) { return <div><span className="requirement-icon">{state === "Confirmed" ? <Check size={15} /> : <AlertCircle size={15} />}</span><span><strong>{title}</strong><small>{detail}</small></span><Status text={state} /><button onClick={onOpen}><ArrowRight size={15} /></button></div>; }
 
@@ -754,7 +682,6 @@ function EmptyState({ icon: Icon, title, text, action, onAction }: { icon: typeo
 function Scenario({ title, cost, gap, state, onOpen }: { title: string; cost: string; gap: string; state: string; onOpen?: () => void }) { return <article className="scenario-card"><div><span className="scenario-icon"><WalletCards size={18} /></span><button onClick={onOpen}><MoreHorizontal size={17} /></button></div><h3>{title}</h3><strong>{cost}</strong><p>{gap}</p><Status text={state} /><button className="scenario-open" onClick={onOpen}>Open scenario <ArrowRight size={14} /></button></article>; }
 function Assumption({ label, value, source, onEdit }: { label: string; value: string; source: string; onEdit?: () => void }) { return <div><span>{label}<small>{source}</small></span><strong>{value}</strong><button onClick={onEdit}>Edit</button></div>; }
 function OfferFeature({ icon: Icon, title, text }: { icon: typeof BookOpenCheck; title: string; text: string }) { return <article><span><Icon size={18} /></span><h3>{title}</h3><p>{text}</p></article>; }
-function ProfileSection({ icon: Icon, title, state, detail, onOpen }: { icon: typeof UserRound; title: string; state: string; detail: string; onOpen?: (title: string, state: string, detail: string) => void }) { return <button onClick={() => onOpen?.(title, state, detail)}><span><Icon size={18} /></span><span><strong>{title}</strong><small>{detail}</small></span><Status text={state} /><ArrowRight size={15} /></button>; }
 function Notice({ icon: Icon, tone, title, text, time, read = false, onOpen }: { icon: typeof Bell; tone: string; title: string; text: string; time: string; read?: boolean; onOpen?: () => void }) { return <button className={`notice ${read ? "is-read" : ""}`} onClick={onOpen}><span className={`notice__icon notice__icon--${tone}`}><Icon size={17} /></span><span><strong>{title}</strong><p>{text}</p><small>{time}</small></span><ArrowRight size={17} /></button>; }
 function HelpCard({ icon: Icon, title, text, onOpen }: { icon: typeof CircleHelp; title: string; text: string; onOpen?: () => void }) { return <button onClick={onOpen}><span><Icon size={19} /></span><h3>{title}</h3><p>{text}</p><ArrowRight size={15} /></button>; }
 function AdminModule({ icon: Icon, title, meta, onOpen }: { icon: typeof Database; title: string; meta: string; onOpen?: (title: string, meta: string) => void }) { return <button onClick={() => onOpen?.(title, meta)}><span><Icon size={19} /></span><div><strong>{title}</strong><small>{meta}</small></div><ArrowRight size={15} /></button>; }

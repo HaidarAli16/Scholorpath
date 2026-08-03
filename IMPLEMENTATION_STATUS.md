@@ -1,5 +1,44 @@
 # ScholarPath implementation status
 
+## Sprint 4: Production backend and live decision path
+
+Status: repository-ready and verified locally on 3 August 2026; remote migration pending
+
+### Included
+
+- Supabase schema for identity, assessments, catalogue truth, atomic rules,
+  recommendation history, portfolios, applications, Kanban tasks, evidence,
+  references, writing, funding, offers, consent, audit, imports and outbox.
+- Tenant-safe composite foreign keys, row-level security, private storage and
+  role-separated research publication.
+- Transactional assessment submission, idempotency, rate limiting, task state
+  transitions, readiness snapshots and requirement-to-task generation.
+- Deterministic recommendation engine with hard gates, funding/deadline/source
+  feasibility, explainable reasons, open checks and versioned results.
+- Recommendation persistence restricted to the server-only Supabase secret;
+  authenticated users cannot write fabricated recommendation runs directly.
+- Today, Discover, Portfolio and route detail now consume the same live
+  catalogue and latest recommendation run, with a safe demo fallback.
+- Saving a route and starting an application now persist into the authenticated
+  workspace; official source URLs and verification dates come from catalogue data.
+
+### Verification
+
+- ESLint passes with zero warnings.
+- TypeScript strict-mode check passes.
+- 10 unit tests pass across assessment, recommendation and live catalogue mapping.
+- Next.js optimized production build passes.
+- All four generated PostgreSQL migrations parse successfully.
+- Production server smoke tests pass for pages and API routes.
+- Desktop discovery/filter/explanation flow and 390 × 844 responsive layout pass.
+- No horizontal overflow or browser console errors were detected.
+
+### Remaining live release gate
+
+- Apply the four migrations to Supabase project `gbhzekncpqeytknxanzy`.
+- Install production environment secrets, run Security/Performance Advisors and
+  complete the documented two-account isolation test before inviting beta users.
+
 ## Sprint 3: Complete frontend system
 
 Status: implemented and verified locally on 25 July 2026
@@ -100,7 +139,6 @@ Status: implemented and verified locally
 
 ## Next milestone
 
-Build the Supabase truth system: source registry, programme and scholarship
-cycles, atomic requirement rules, reviewer publication workflow, and
-student-profile persistence. Then connect the current pathway workspace to
-verified opportunity records.
+Deploy and validate the prepared Supabase migrations, seed the first reviewed
+catalogue cycles, and complete the real onboarding-to-recommendation-to-task
+journey in the Vercel preview environment.

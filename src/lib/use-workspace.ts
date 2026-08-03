@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import type { AssessmentInput } from "@/modules/assessment/types";
 
 export type LiveTask = { id: string; title: string; description?: string | null; state: string; due_at?: string | null; application_id?: string | null; system_generated: boolean };
 export type LiveDocument = { id: string; name: string; category: string; status: string; version: number; created_at: string; updated_at: string; metadata?: Record<string, unknown> };
@@ -9,7 +10,7 @@ type WorkspacePayload = {
   mode: "demo" | "live";
   authenticated: boolean;
   user?: { id: string; email?: string };
-  data?: { tasks?: LiveTask[]; documents?: LiveDocument[]; applications?: unknown[]; portfolios?: unknown[]; notifications?: unknown[]; writing?: unknown[]; funding?: unknown[]; offers?: unknown[] } | null;
+  data?: { profile?: { first_name?: string; nationality?: string; current_country?: string; preferred_currency?: string } | null; assessment?: { completion_percent?: number; answers?: Partial<AssessmentInput> } | null; tasks?: LiveTask[]; documents?: LiveDocument[]; applications?: unknown[]; portfolios?: unknown[]; notifications?: unknown[]; writing?: unknown[]; funding?: unknown[]; offers?: unknown[] } | null;
 };
 
 export function useWorkspace() {
@@ -37,4 +38,3 @@ export function useWorkspace() {
 
   return { ...workspace, loading, refresh, act };
 }
-

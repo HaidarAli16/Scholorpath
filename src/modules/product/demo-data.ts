@@ -6,12 +6,15 @@ export type Opportunity = {
   country: string;
   flag: string;
   deadline: string;
+  deadlineAt?: string;
   deadlineNote: string;
   value: string;
   match: "Confirmed match" | "Conditional match" | "Needs verification";
   freshness: "Verified" | "Review due";
   reasons: string[];
   condition: string;
+  sourceUrl?: string;
+  lastVerifiedAt?: string;
   saved?: boolean;
 };
 
@@ -136,4 +139,3 @@ export const sourceQueue = [
   { record: "Saarland AI entry criteria", type: "Atomic rules", state: "Normalization", impact: "42 saved" },
   { record: "Erasmus DSAI 2027 cycle", type: "Scholarship cycle", state: "Awaiting source", impact: "91 saved" },
 ];
-

@@ -297,6 +297,7 @@ end;
 $$;
 
 create or replace function public.store_recommendation_run(
+  p_user_id uuid,
   p_assessment_id uuid,
   p_engine_version text,
   p_catalogue_version text,
@@ -306,14 +307,20 @@ create or replace function public.store_recommendation_run(
 ) returns uuid
 language plpgsql security definer set search_path = '' as $$
 declare
-  uid uuid := (select auth.uid());
+  uid uuid := p_user_id;
   v_run_id uuid;
   item jsonb;
+  expected_profile jsonb;
+  entity_kind text;
+  entity_uuid uuid;
+  entity_score numeric;
 begin
-  if uid is null then raise exception 'authentication required' using errcode='42501'; end if;
-  if p_assessment_id is not null and not exists(select 1 from public.assessments where id=p_assessment_id and user_id=uid) then
-    raise exception 'assessment not found' using errcode='P0002';
-  end if;
+  if uid is null then raise exception 'user required' using errcode='22023'; end if;
+  if p_assessment_id is null then raise exception 'completed assessment required' using errcode='22023'; end if;
+  select answers into expected_profile from public.assessments where id=p_assessment_id and user_id=uid and status='completed';
+  if expected_profile is null then raise exception 'assessment not found' using errcode='P0002'; end if;
+  if expected_profile <> p_profile_snapshot then raise exception 'profile snapshot does not match assessment' using errcode='22023'; end if;
+  if jsonb_typeof(p_results) <> 'array' or jsonb_array_length(p_results) > 500 then raise exception 'invalid recommendation results' using errcode='22023'; end if;
   insert into public.recommendation_runs(user_id,assessment_id,engine_version,catalogue_version,profile_hash,profile_snapshot,weights,result_count)
   values(uid,p_assessment_id,p_engine_version,p_catalogue_version,md5(p_profile_snapshot::text),p_profile_snapshot,p_weights,jsonb_array_length(coalesce(p_results,'[]'::jsonb)))
   on conflict(user_id,assessment_id,engine_version,catalogue_version,profile_hash) do update set generated_at=now(),profile_snapshot=excluded.profile_snapshot,
@@ -321,12 +328,24 @@ begin
   delete from public.recommendation_components c where c.run_id=v_run_id;
   delete from public.match_evaluations m where m.user_id=uid and m.engine_version=p_engine_version;
   for item in select value from jsonb_array_elements(coalesce(p_results,'[]'::jsonb)) loop
+    entity_kind := item->>'entityType';
+    entity_uuid := (item->>'entityId')::uuid;
+    entity_score := (item->>'score')::numeric;
+    if entity_kind not in ('programme','scholarship') or entity_score < 0 or entity_score > 100 then
+      raise exception 'invalid recommendation component' using errcode='22023';
+    end if;
+    if entity_kind='programme' and not exists(select 1 from public.programmes where id=entity_uuid and state='published') then
+      raise exception 'programme is not published' using errcode='22023';
+    end if;
+    if entity_kind='scholarship' and not exists(select 1 from public.scholarships where id=entity_uuid and state='published') then
+      raise exception 'scholarship is not published' using errcode='22023';
+    end if;
     insert into public.recommendation_components(run_id,user_id,entity_type,entity_id,state,final_score,score_components,reasons,failed_gates,open_checks,next_actions,rule_versions)
-    values(v_run_id,uid,item->>'entityType',(item->>'entityId')::uuid,(item->>'state')::public.match_state,
-      (item->>'score')::numeric,coalesce(item->'scoreComponents','{}'::jsonb),coalesce(item->'reasons','[]'::jsonb),
+    values(v_run_id,uid,entity_kind,entity_uuid,(item->>'state')::public.match_state,
+      entity_score,coalesce(item->'scoreComponents','{}'::jsonb),coalesce(item->'reasons','[]'::jsonb),
       coalesce(item->'failedGates','[]'::jsonb),coalesce(item->'openChecks','[]'::jsonb),coalesce(item->'nextActions','[]'::jsonb),coalesce(item->'ruleVersions','[]'::jsonb));
     insert into public.match_evaluations(user_id,assessment_id,entity_type,entity_id,state,score,reason_codes,open_checks,rule_versions,engine_version)
-    values(uid,p_assessment_id,item->>'entityType',(item->>'entityId')::uuid,(item->>'state')::public.match_state,(item->>'score')::numeric,
+    values(uid,p_assessment_id,entity_kind,entity_uuid,(item->>'state')::public.match_state,entity_score,
       coalesce(item->'reasonCodes','[]'::jsonb),coalesce(item->'openChecks','[]'::jsonb),coalesce(item->'ruleVersions','[]'::jsonb),p_engine_version)
     on conflict(user_id,entity_type,entity_id,engine_version) do update set assessment_id=excluded.assessment_id,state=excluded.state,
       score=excluded.score,reason_codes=excluded.reason_codes,open_checks=excluded.open_checks,rule_versions=excluded.rule_versions,evaluated_at=now();
@@ -616,8 +635,8 @@ revoke all on function public.consume_rate_limit(text,integer,integer) from publ
 grant execute on function public.consume_rate_limit(text,integer,integer) to service_role;
 revoke all on function public.submit_assessment(jsonb,jsonb,jsonb,jsonb,text,text,text,text) from public, anon;
 grant execute on function public.submit_assessment(jsonb,jsonb,jsonb,jsonb,text,text,text,text) to authenticated;
-revoke all on function public.store_recommendation_run(uuid,text,text,jsonb,jsonb,jsonb) from public, anon;
-grant execute on function public.store_recommendation_run(uuid,text,text,jsonb,jsonb,jsonb) to authenticated;
+revoke all on function public.store_recommendation_run(uuid,uuid,text,text,jsonb,jsonb,jsonb) from public, anon, authenticated;
+grant execute on function public.store_recommendation_run(uuid,uuid,text,text,jsonb,jsonb,jsonb) to service_role;
 revoke all on function public.refresh_application_readiness(uuid,uuid) from public, anon, authenticated;
 grant execute on function public.refresh_application_readiness(uuid,uuid) to service_role;
 revoke all on function public.transition_task(uuid,public.task_state,numeric,text,uuid) from public, anon;

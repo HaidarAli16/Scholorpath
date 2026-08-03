@@ -32,7 +32,7 @@ export async function GET() {
 
   const [profile, assessments, applications, tasks, documents, portfolios, notifications, writing, funding, offers] = await Promise.all([
     supabase.from("student_profiles").select("*").eq("user_id", user.id).maybeSingle(),
-    supabase.from("assessments").select("id,status,completion_percent,updated_at").eq("user_id", user.id).order("updated_at", { ascending: false }).limit(1),
+    supabase.from("assessments").select("id,status,completion_percent,answers,updated_at").eq("user_id", user.id).order("updated_at", { ascending: false }).limit(1),
     supabase.from("applications").select("*").eq("user_id", user.id).order("deadline_at", { ascending: true }),
     supabase.from("tasks").select("*").eq("user_id", user.id).order("due_at", { ascending: true }),
     supabase.from("documents").select("id,name,category,status,version,metadata,created_at,updated_at").eq("user_id", user.id).neq("status", "deleted").order("updated_at", { ascending: false }),

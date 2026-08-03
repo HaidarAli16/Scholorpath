@@ -5,7 +5,7 @@ import { evaluateRecommendations, recommendationEngineVersion, recommendationWei
 export async function evaluateCatalogue(
   supabase: SupabaseClient,
   profile: Record<string, unknown>,
-  options: { userId?: string | null; assessmentId?: string | null } = {},
+  options: { userId?: string | null; assessmentId?: string | null; persistenceClient?: SupabaseClient | null } = {},
 ) {
   const [programmesResult, scholarshipsResult, rulesResult] = await Promise.all([
     supabase.from("programmes").select("id,title,institution_name,country_code,deadline_at,last_verified_at,next_review_at,updated_at,attributes").eq("state", "published"),
@@ -36,7 +36,9 @@ export async function evaluateCatalogue(
   })).digest("hex");
 
   if (options.userId) {
-    const { data: runId, error: persistError } = await supabase.rpc("store_recommendation_run", {
+    if (!options.persistenceClient) throw new Error("Secure recommendation persistence is not configured.");
+    const { data: runId, error: persistError } = await options.persistenceClient.rpc("store_recommendation_run", {
+      p_user_id: options.userId,
       p_assessment_id: options.assessmentId ?? null,
       p_engine_version: recommendationEngineVersion,
       p_catalogue_version: catalogueVersion,
