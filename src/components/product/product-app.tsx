@@ -373,12 +373,15 @@ function Discover({ query, setQuery, items, catalogueMode, catalogueError, backe
 }
 
 function StudentReport({ handoff }: { handoff: AssessmentHandoff | null }) {
+  const [simulationId, setSimulationId] = useState("academic-evidence");
   if (!handoff) {
     return <EmptyState icon={ClipboardCheck} title="Your pathway report starts with your profile" text="Complete the guided assessment so ScholarPath can validate your answers, expose uncertainty, and build an evidence-led action plan." action="Start assessment" onAction={() => { window.location.href = "/"; }} />;
   }
 
   const { profile, report } = handoff;
   const priority = report.actionPlan.find((item) => !item.complete) ?? report.actionPlan[0];
+  const intelligence = report.intelligence;
+  const selectedSimulation = intelligence?.simulations.find((item) => item.id === simulationId) ?? intelligence?.simulations[0];
   return (
     <div className="student-report">
       <header className="student-report__hero">
@@ -411,6 +414,33 @@ function StudentReport({ handoff }: { handoff: AssessmentHandoff | null }) {
           </article>)}
         </div>
       </section>
+
+      {intelligence && <section className="report-section intelligence-map">
+        <div className="report-section__head"><div><span className="product-eyebrow">Programme-level intelligence</span><h2>Every requirement, not one vague match score</h2></div><p>{intelligence.audit.evaluatedRules} rules evaluated · {intelligence.audit.unknownRules} remain open</p></div>
+        <div className="intelligence-opportunities">{intelligence.opportunities.map((item, index) => <article key={item.id}>
+          <header><span>{String(index + 1).padStart(2, "0")}</span><div><small>{item.country} · {item.kind}</small><h3>{item.title}</h3><p>{item.provider}</p></div><div className="intelligence-priority"><strong>{item.researchPriority}</strong><small>research priority</small><Status text={item.state === "aligned" ? "Aligned" : item.state === "blocked" ? "Blocked" : item.state === "stale" ? "Source review due" : "Conditional"} /></div></header>
+          <div className="intelligence-components">{Object.entries(item.components).map(([key, value]) => <span key={key}><small>{key}</small><i><b style={{ width: `${value}%` }} /></i><strong>{value}</strong></span>)}</div>
+          <div className="requirement-list-compact">{item.requirements.map((requirement) => <div key={requirement.id} className={`requirement-compact requirement-compact--${requirement.outcome}`}><span>{requirement.outcome === "pass" ? <Check size={14} /> : <AlertCircle size={14} />}</span><p><strong>{requirement.label}</strong><small>{requirement.actual} · expected: {requirement.expected}</small></p><em>{requirement.hard ? "Gate" : requirement.impact}</em></div>)}</div>
+          <footer><span><strong>{item.confidence}% evidence confidence</strong><small>{item.source.state.replaceAll("_", " ")} · {item.source.version}</small></span><a href={item.source.url} target="_blank" rel="noreferrer">Open source <ExternalLink size={14} /></a></footer>
+        </article>)}</div>
+      </section>}
+
+      {intelligence && <section className="report-section evidence-confidence-section">
+        <div className="report-section__head"><div><span className="product-eyebrow">Evidence confidence</span><h2>A claim is not proof until a document supports it</h2></div><p>{intelligence.evidenceConfidence}% weighted confidence across the current profile</p></div>
+        <div className="evidence-confidence-grid">{intelligence.evidenceClaims.map((claim) => <article key={claim.id}><header><span>{claim.category}</span><Status text={claim.state === "verified" ? "Verified" : claim.state === "declared" ? "Declared" : "Missing"} /></header><h3>{claim.label}</h3><div><i><b style={{ width: `${claim.confidence}%` }} /></i><strong>{claim.confidence}%</strong></div><p>{claim.sourceNeeded}</p><small>Affects: {claim.affects.join(", ")}</small></article>)}</div>
+      </section>}
+
+      {intelligence && selectedSimulation && <section className="report-section simulation-lab">
+        <div className="report-section__head"><div><span className="product-eyebrow">What changes if…</span><h2>Test improvements before spending time or money</h2></div><p>Impact is recalculated from rules and evidence—not outcome probability.</p></div>
+        <div className="simulation-layout"><nav aria-label="Improvement simulations">{intelligence.simulations.map((simulation) => <button key={simulation.id} className={selectedSimulation.id === simulation.id ? "active" : ""} onClick={() => setSimulationId(simulation.id)}><span><SlidersHorizontal size={16} /></span><p><strong>{simulation.title}</strong><small>{simulation.change}</small></p><ArrowRight size={15} /></button>)}</nav><article><span className="product-eyebrow">Simulated impact</span><h3>{selectedSimulation.title}</h3><p>{selectedSimulation.explanation}</p><div className="simulation-deltas"><span><strong>+{selectedSimulation.readinessDelta}</strong><small>readiness points</small></span><span><strong>+{selectedSimulation.confidenceDelta}</strong><small>confidence points</small></span><span><strong>{selectedSimulation.affectedRoutes.length}</strong><small>routes affected</small></span></div><div className="simulation-routes">{selectedSimulation.affectedRoutes.map((route) => <span key={route}><Check size={13} />{route}</span>)}</div><Link href="/workspace">{selectedSimulation.action} <ArrowRight size={14} /></Link></article></div>
+      </section>}
+
+      {intelligence && <section className="report-section portfolio-intelligence">
+        <div className="report-section__head"><div><span className="product-eyebrow">Portfolio optimizer</span><h2>Balance preference, cost, funding and verification risk</h2></div><span className="portfolio-health"><strong>{intelligence.portfolio.coverage}%</strong> role coverage</span></div>
+        <div>{intelligence.portfolio.slots.map((slot) => { const item = intelligence.opportunities.find((candidate) => candidate.id === slot.opportunityId); return item ? <article key={slot.opportunityId}><span>{slot.role.replaceAll("-", " ")}</span><h3>{item.title}</h3><p>{slot.reason}</p><small>{item.state} · {item.confidence}% evidence confidence</small></article> : null; })}</div>
+      </section>}
+
+      {intelligence && <details className="report-audit"><summary><span><Database size={18} /><strong>Recommendation audit trail</strong><small>{intelligence.engineVersion} · reproducible source versions</small></span><ChevronDown size={18} /></summary><div><div>{intelligence.audit.trace.map((line) => <p key={line}><Check size={14} />{line}</p>)}</div><aside><strong>Run totals</strong><span>{intelligence.audit.passedRules} passed</span><span>{intelligence.audit.unknownRules} unresolved</span><span>{intelligence.audit.failedRules} failed</span><small>Generated {new Date(intelligence.evaluatedAt).toLocaleString()}</small></aside></div></details>}
 
       <section className="report-section">
         <div className="report-section__head"><div><span className="product-eyebrow">Validated understanding</span><h2>The facts driving this report</h2></div><Link href="/">Reassess <RefreshCw size={14} /></Link></div>

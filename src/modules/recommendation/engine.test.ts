@@ -40,4 +40,11 @@ describe("recommendation rules", () => {
     expect(result.score).toBeLessThanOrEqual(55);
     expect(result.nextActions).toContain("Verify the latest official source before relying on this option.");
   });
+
+  it("stores requirement-level evidence and a reproducible audit trace", () => {
+    const [result] = evaluateRecommendations({ grade: 80 }, [entity()], new Date("2026-08-01T00:00:00Z"));
+    expect(result.evidenceConfidence).toBe(100);
+    expect(result.requirementEvaluations[0]).toMatchObject({ ruleKey: "grade", outcome: "pass", actual: 80, expected: 70 });
+    expect(result.auditTrace.join(" ")).toContain("rules-3.0.0-evidence-audit");
+  });
 });

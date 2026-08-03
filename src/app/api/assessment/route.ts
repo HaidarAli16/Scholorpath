@@ -38,10 +38,10 @@ export async function POST(request: Request) {
         description: item.detail,
         priority: item.impact === "critical" ? 1 : item.impact === "high" ? 2 : 3,
         estimated_minutes: 15 + index * 10,
-        impact_type: item.id === "funding-scenarios" ? "funding" : "profile",
+        impact_type: item.id === "funding-scenarios" ? "funding" : item.id.startsWith("requirement-") ? "eligibility" : "profile",
         impact_level: item.impact,
         impact_score: item.impact === "critical" ? 90 : item.impact === "high" ? 72 : 48,
-        evidence_required: item.id === "academic-proof" ? ["Transcript", "Degree status", "Official grading scale"] : [],
+        evidence_required: item.id === "academic-proof" ? ["Transcript", "Degree status", "Official grading scale"] : item.id.startsWith("requirement-") ? ["Official source", "Supporting student evidence"] : [],
       }));
       const { data: submission, error } = await supabase!.rpc("submit_assessment", {
         p_profile: { first_name: parsed.data.firstName, nationality: parsed.data.nationality, current_country: parsed.data.currentCountry, preferred_currency: parsed.data.budgetCurrency },
@@ -55,11 +55,19 @@ export async function POST(request: Request) {
       });
       if (error) return NextResponse.json({ error: "Your assessment could not be saved atomically.", detail: error.message }, { status: 500 });
       const assessmentId = (submission as { assessment_id?: string } | null)?.assessment_id ?? null;
+      let intelligenceRunId: string | null = null;
+      if (assessmentId) {
+        const { data: storedIntelligence } = await supabase!.rpc("store_intelligence_report", {
+          p_assessment_id: assessmentId,
+          p_report: report.intelligence,
+        });
+        intelligenceRunId = typeof storedIntelligence === "string" ? storedIntelligence : null;
+      }
       try {
         const recommendation = await evaluateCatalogue(supabase!, parsed.data as unknown as Record<string, unknown>, { userId: user.id, assessmentId, persistenceClient: createSupabaseAdminClient() });
-        return NextResponse.json({ ...report, recommendation: { status: "ready", runId: recommendation.runId, resultCount: recommendation.results.length, results: recommendation.results } });
+        return NextResponse.json({ ...report, intelligencePersistence: { status: intelligenceRunId ? "ready" : "pending", runId: intelligenceRunId }, recommendation: { status: "ready", runId: recommendation.runId, resultCount: recommendation.results.length, results: recommendation.results } });
       } catch {
-        return NextResponse.json({ ...report, recommendation: { status: "queued", resultCount: 0 } });
+        return NextResponse.json({ ...report, intelligencePersistence: { status: intelligenceRunId ? "ready" : "pending", runId: intelligenceRunId }, recommendation: { status: "queued", resultCount: 0 } });
       }
     }
   }

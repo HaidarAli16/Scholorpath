@@ -5,6 +5,7 @@ import type {
   PathwayLane,
   ReadinessDimension,
 } from "./types";
+import { generateIntelligenceReport } from "../intelligence/engine";
 
 const currencyLabels = {
   PKR: "PKR",
@@ -205,6 +206,7 @@ export function generateAssessmentReport(input: AssessmentInput): AssessmentRepo
   const grade = normalizedGrade(input);
   const pathways = buildPathways(input, grade);
   const readiness = buildReadiness(input, grade);
+  const intelligence = generateIntelligenceReport(input);
   const evidenceGaps = [
     "Programme-specific academic threshold",
     "Official degree and grading-scale evidence",
@@ -239,11 +241,28 @@ export function generateAssessmentReport(input: AssessmentInput): AssessmentRepo
     ],
     evidenceGaps,
     pathways,
-    actionPlan: buildActions(input),
+    actionPlan: [
+      ...buildActions(input),
+      ...intelligence.opportunities
+        .flatMap((opportunity) => opportunity.requirements.map((requirement) => ({ opportunity, requirement })))
+        .filter(({ requirement }) => requirement.outcome !== "pass")
+        .sort((a, b) => ({ critical: 3, high: 2, medium: 1 }[b.requirement.impact] - ({ critical: 3, high: 2, medium: 1 }[a.requirement.impact])))
+        .filter(({ requirement }, index, items) => items.findIndex((item) => item.requirement.label === requirement.label) === index)
+        .slice(0, 3)
+        .map(({ opportunity, requirement }, index): ActionItem => ({
+          id: `requirement-${requirement.id}`,
+          title: `Resolve ${requirement.label.toLowerCase()}`,
+          detail: `${opportunity.title}: ${requirement.expected}. ${requirement.explanation}`,
+          horizon: index === 0 ? "Today" : index === 1 ? "This week" : "Next",
+          impact: requirement.impact,
+          complete: false,
+        })),
+    ],
     assumptions: [
       "Academic normalization is an internal planning aid, not an official equivalency.",
       "A route remains conditional or unknown until programme-specific sources are attached.",
       "The system does not predict admission, scholarship or visa outcomes.",
     ],
+    intelligence,
   };
 }

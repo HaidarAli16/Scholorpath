@@ -1,3 +1,5 @@
+import type { IntelligenceReport } from "../intelligence/engine";
+
 export const originOptions = ["Pakistan", "India", "Bangladesh"] as const;
 export type OriginCountry = (typeof originOptions)[number];
 
@@ -170,4 +172,5 @@ export interface AssessmentReport {
   assumptions: string[];
   liveScholarships?: LiveScholarshipPreview[];
   liveDataNotice?: string;
+  intelligence: IntelligenceReport;
 }

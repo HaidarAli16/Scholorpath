@@ -48,9 +48,12 @@ export type RecommendationResult = {
   failedGates: string[];
   nextActions: string[];
   ruleVersions: { id: string; version: number }[];
+  evidenceConfidence: number;
+  requirementEvaluations: Array<{ ruleId: string; ruleKey: string; group: string; severity: RuleSeverity; outcome: "pass" | "fail" | "unknown"; actual: unknown; expected: unknown; explanation: string }>;
+  auditTrace: string[];
 };
 
-export const recommendationEngineVersion = "rules-2.0.0";
+export const recommendationEngineVersion = "rules-3.0.0-evidence-audit";
 export const recommendationWeights = Object.freeze({ eligibility: 35, fit: 25, funding: 15, deadline: 10, freshness: 10, evidence: 5 });
 
 function readPath(profile: Record<string, unknown>, path: string) {
@@ -97,9 +100,11 @@ export function evaluateRecommendations(profile: Record<string, unknown>, entiti
     const failedGates: string[] = [];
     const reasonCodes: string[] = [];
     const counts = { hard: { pass: 0, known: 0, total: 0 }, soft: { pass: 0, known: 0, total: 0 }, information: { pass: 0, known: 0, total: 0 } };
+    const requirementEvaluations: RecommendationResult["requirementEvaluations"] = [];
 
     for (const rule of entity.rules) {
-      const result = compareRuleValue(readPath(profile, rule.profileField), rule.operator, rule.expectedValue);
+      const actual = readPath(profile, rule.profileField);
+      const result = compareRuleValue(actual, rule.operator, rule.expectedValue);
       const bucket = counts[rule.severity];
       bucket.total += 1;
       if (result !== null) bucket.known += 1;
@@ -117,6 +122,7 @@ export function evaluateRecommendations(profile: Record<string, unknown>, entiti
         openChecks.push(`Evidence needed: ${rule.explanation}`);
         reasonCodes.push(`${rule.ruleKey}:unknown`);
       }
+      requirementEvaluations.push({ ruleId: rule.id, ruleKey: rule.ruleKey, group: rule.ruleGroup, severity: rule.severity, outcome: result === null ? "unknown" : result ? "pass" : "fail", actual: actual ?? null, expected: rule.expectedValue, explanation: rule.explanation });
     }
 
     const deadline = deadlineScore(entity.deadlineAt, now);
@@ -147,6 +153,14 @@ export function evaluateRecommendations(profile: Record<string, unknown>, entiti
       ...openChecks.slice(0, 3).map((check) => `Resolve: ${check}`),
       ...(entity.sourceFreshness !== "verified" ? ["Verify the latest official source before relying on this option."] : []),
     ];
+    const knownRules = counts.hard.known + counts.soft.known + counts.information.known;
+    const evidenceConfidence = entity.rules.length ? Math.round((knownRules / entity.rules.length) * 100) : 0;
+    const auditTrace = [
+      `${entity.rules.length} versioned requirements evaluated with ${recommendationEngineVersion}.`,
+      `${knownRules} requirements had a usable profile value; ${entity.rules.length - knownRules} remained unknown.`,
+      `${failedGates.length} hard gates failed and ${openChecks.length} checks remained open.`,
+      `Source state: ${entity.sourceFreshness}; research priority is not an admission or award probability.`,
+    ];
 
     return {
       entityId: entity.id,
@@ -162,6 +176,9 @@ export function evaluateRecommendations(profile: Record<string, unknown>, entiti
       failedGates: failedGates.slice(0, 6),
       nextActions,
       ruleVersions: entity.rules.map((rule) => ({ id: rule.id, version: rule.version })),
+      evidenceConfidence,
+      requirementEvaluations,
+      auditTrace,
     };
   }).sort((a, b) => {
     const stateRank = { confirmed: 4, conditional: 3, unknown: 2, stale: 1, failed: 0 };
