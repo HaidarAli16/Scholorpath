@@ -30,6 +30,7 @@ import {
   loadAssessmentDraft,
   saveAssessmentDraft,
 } from "@/lib/draft-store";
+import { saveAssessmentHandoff } from "@/lib/assessment-handoff";
 import {
   fieldOptions,
   intakeOptions,
@@ -916,9 +917,11 @@ export function AssessmentExperience() {
       ]);
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? "Some answers need attention.");
-      setReport(result as AssessmentReport);
+      const completedReport = result as AssessmentReport;
+      saveAssessmentHandoff(draft, completedReport);
+      setReport(completedReport);
       clearAssessmentDraft();
-      setMode("workspace");
+      window.location.assign("/today");
     } catch (submissionError) {
       setMode("assessment");
       setError(submissionError instanceof Error ? submissionError.message : "We could not build your pathway.");

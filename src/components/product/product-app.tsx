@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   AlertCircle,
@@ -49,6 +48,7 @@ import { useEffect, useMemo, useState } from "react";
 import { applications, documents, opportunities, sourceQueue, tasks, type Opportunity } from "@/modules/product/demo-data";
 import { useWorkspace } from "@/lib/use-workspace";
 import { useOpportunities } from "@/lib/use-opportunities";
+import { loadAssessmentHandoff, type AssessmentHandoff } from "@/lib/assessment-handoff";
 import { TaskCommandCenter } from "@/components/tasks/task-command-center";
 import { OpportunityDetail, SettingsCenter, StudentProfileCenter } from "@/components/product/frontend-completion";
 import { uploadStudentDocument } from "@/lib/upload-document";
@@ -76,9 +76,16 @@ export function ProductApp({ module }: ProductAppProps) {
   const [mobileMenu, setMobileMenu] = useState(false);
   const [query, setQuery] = useState("");
   const [commandOpen, setCommandOpen] = useState(false);
+  const [assessmentHandoff, setAssessmentHandoff] = useState<AssessmentHandoff | null>(null);
   const backend = useWorkspace();
   const catalogue = useOpportunities(backend.data?.portfolios);
   const opportunityItems = catalogue.mode === "live" ? catalogue.items : opportunities;
+  const workspaceName = backend.data?.profile?.first_name || assessmentHandoff?.profile.firstName || "Student";
+  const workspaceInitials = workspaceName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "SP";
+
+  useEffect(() => {
+    setAssessmentHandoff(loadAssessmentHandoff());
+  }, []);
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
@@ -100,8 +107,8 @@ export function ProductApp({ module }: ProductAppProps) {
       <aside className={`product-rail ${mobileMenu ? "is-open" : ""}`}>
         <div className="product-rail__head">
           <Link className="product-brand" href="/today">
-            <span className="product-brand__mark"><GraduationCap size={16} /></span>
-            <span>ScholarPath<small>Verified admissions</small></span>
+            <span className="product-brand__mark"><Sparkles size={16} /></span>
+            <span>ScholarPath<small>Pathway intelligence</small></span>
           </Link>
           <button className="icon-control rail-close" onClick={() => setMobileMenu(false)} aria-label="Close navigation"><X size={18} /></button>
         </div>
@@ -125,7 +132,7 @@ export function ProductApp({ module }: ProductAppProps) {
         <header className="product-topbar">
           <div className="product-topbar__left">
             <button className="icon-control menu-trigger" onClick={() => setMobileMenu(true)} aria-label="Open navigation"><Menu size={19} /></button>
-            <span className="mobile-product-mark"><GraduationCap size={16} /></span>
+            <span className="mobile-product-mark"><Sparkles size={16} /></span>
             <div><small>ScholarPath</small><strong>{title}</strong></div>
           </div>
           <nav className="dashboard-topnav" aria-label="Workspace sections"><Link className={topSection === "overview" ? "active" : ""} href="/today">Overview</Link><Link className={topSection === "pathways" ? "active" : ""} href="/discover">Pathways</Link><Link className={topSection === "applications" ? "active" : ""} href="/applications">Applications</Link><Link className={topSection === "plan" ? "active" : ""} href="/workspace">Plan</Link><Link className={topSection === "documents" ? "active" : ""} href="/workspace/documents">Documents</Link></nav>
@@ -133,7 +140,7 @@ export function ProductApp({ module }: ProductAppProps) {
             <button className="command-button" onClick={() => setCommandOpen(true)}><Search size={15} /><span>Search anything</span><kbd><Command size={10} /> K</kbd></button>
             <Link className="icon-control notification-control" href="/notifications" aria-label="Notifications"><Bell size={17} /><i /></Link>
             <span className={`backend-state backend-state--${backend.mode}`} title={backend.mode === "live" ? "Changes are saved to Supabase" : "Local demo data is active"}><i />{backend.mode === "live" ? "Live" : "Demo"}</span>
-            <Link className="profile-chip" href={backend.authenticated ? "/profile" : "/auth"}><span>{backend.authenticated ? "HA" : <Lock size={14} />}</span><strong>{backend.authenticated ? "Haidar" : "Sign in"}<small>{backend.authenticated ? "Private workspace" : "Save your progress"}</small></strong><ChevronDown size={14} /></Link>
+            <Link className="profile-chip" href={backend.authenticated ? "/profile" : "/auth"}><span>{backend.authenticated ? workspaceInitials : <Lock size={14} />}</span><strong>{backend.authenticated ? workspaceName : "Sign in"}<small>{backend.authenticated ? "Private workspace" : "Save your progress"}</small></strong><ChevronDown size={14} /></Link>
           </div>
         </header>
 
@@ -142,7 +149,7 @@ export function ProductApp({ module }: ProductAppProps) {
         </div>
 
         <div className="product-page">
-          {module === "today" && <Today items={opportunityItems} profile={backend.data?.profile} completion={backend.data?.assessment?.completion_percent} />}
+          {module === "today" && <Today items={opportunityItems} profile={backend.data?.profile} completion={backend.data?.assessment?.completion_percent} handoff={assessmentHandoff} />}
           {module === "discover" && <Discover query={query} setQuery={setQuery} items={opportunityItems} catalogueMode={catalogue.mode} catalogueError={catalogue.error} backend={backend} origin={backend.data?.profile?.nationality} intake={backend.data?.assessment?.answers?.intake} />}
           {module === "portfolio" && <Portfolio items={opportunityItems} live={catalogue.mode === "live"} />}
           {module === "applications" && <Applications />}
@@ -230,13 +237,17 @@ function PageIntro({ eyebrow, title, description, action }: { eyebrow: string; t
   );
 }
 
-function Today({ items, profile, completion }: { items: Opportunity[]; profile?: { first_name?: string; nationality?: string; current_country?: string } | null; completion?: number }) {
-  const todayLabel = new Intl.DateTimeFormat(undefined, { weekday: "long", day: "numeric", month: "long" }).format(new Date());
+function Today({ items, profile, completion, handoff }: { items: Opportunity[]; profile?: { first_name?: string; nationality?: string; current_country?: string } | null; completion?: number; handoff?: AssessmentHandoff | null }) {
+  const [todayLabel, setTodayLabel] = useState("Today");
   const [selectedFit, setSelectedFit] = useState<Opportunity | null>(null);
-  const studentName = profile?.first_name || "Student";
-  const profileCompletion = completion ?? 0;
+  const studentName = profile?.first_name || handoff?.profile.firstName || "Student";
+  const profileCompletion = completion ?? handoff?.report.profileCompleteness ?? 0;
+  const origin = profile?.nationality || profile?.current_country || handoff?.profile.nationality || handoff?.profile.currentCountry || "Profile in progress";
+  const studentInitials = studentName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "SP";
   const verifiedRoutes = items.filter((item) => item.match === "Confirmed match").length;
   const openRoutes = items.filter((item) => item.match !== "Confirmed match").length;
+
+  useEffect(() => { setTodayLabel(new Intl.DateTimeFormat(undefined, { weekday: "long", day: "numeric", month: "long" }).format(new Date())); }, []);
 
   useEffect(() => {
     if (!selectedFit) return;
@@ -251,15 +262,15 @@ function Today({ items, profile, completion }: { items: Opportunity[]; profile?:
 
   return (
     <>
-      <header className="reference-dashboard-head"><div><span className="product-eyebrow">{todayLabel}</span><h1>Welcome, {studentName}</h1><p>Your personal scholarship dashboard</p></div><span className="fit-freshness"><i /> Intelligence updated today</span></header>
+      <header className="reference-dashboard-head"><div><span className="product-eyebrow">{todayLabel}</span><h1>Welcome, {studentName}</h1><p>{handoff?.report.headline || "Your personal scholarship dashboard"}</p></div><span className="fit-freshness"><i /> Intelligence updated today</span></header>
 
       <div className="reference-dashboard-layout">
         <div className="reference-dashboard-main">
           <section className="reference-overview-grid">
             <article className="student-profile-card">
               <div className="student-profile-card__head"><span>Profile</span><Link href="/profile"><Settings size={17} /></Link></div>
-              <div className="student-profile-card__portrait"><Image src="/images/student-profile-haidar.png" alt="Student profile portrait" width={96} height={96} priority /><i>{profileCompletion}%</i></div>
-              <h2>{studentName}</h2><p>{profile?.nationality || profile?.current_country || "Profile in progress"}</p>
+              <div className="student-profile-card__portrait" style={{ background: `conic-gradient(#155eef ${profileCompletion}%,#eaecf0 0)` }}><span className="student-profile-card__initials">{studentInitials}</span><i>{profileCompletion}%</i></div>
+              <h2>{studentName}</h2><p>{origin}</p>
               <div className="student-profile-card__stats"><span><strong>{verifiedRoutes}</strong><small>Confirmed</small></span><span><strong>{openRoutes}</strong><small>Open checks</small></span><span><strong>{items.length}</strong><small>Routes</small></span></div>
             </article>
             <div className="reference-gradient-stack">
@@ -298,7 +309,7 @@ function Today({ items, profile, completion }: { items: Opportunity[]; profile?:
         <div className="decision-card-head"><div><span className="product-eyebrow">Recommendation engine</span><h2>How your profile becomes a pathway</h2><p>Facts pass through evidence gates before a route is surfaced.</p></div><Link href="/discover">Explore all <ArrowRight size={14} /></Link></div>
         <div className="recommendation-flow">
           <svg className="recommendation-flow__lines" viewBox="0 0 760 330" preserveAspectRatio="none" aria-hidden="true"><path className="flow-line flow-line--blue" d="M176 165 C235 165 228 70 292 70" /><path className="flow-line flow-line--green" d="M176 165 C235 165 228 165 292 165" /><path className="flow-line flow-line--amber" d="M176 165 C235 165 228 260 292 260" /><path className="flow-line flow-line--blue" d="M445 70 C505 70 496 58 552 58" /><path className="flow-line flow-line--green" d="M445 165 C505 165 496 165 552 165" /><path className="flow-line flow-line--amber" d="M445 260 C505 260 496 272 552 272" /><circle cx="176" cy="165" r="4" /><circle cx="292" cy="70" r="4" /><circle cx="292" cy="165" r="4" /><circle cx="292" cy="260" r="4" /><circle cx="552" cy="58" r="4" /><circle cx="552" cy="165" r="4" /><circle cx="552" cy="272" r="4" /></svg>
-          <div className="flow-column flow-column--profile"><span className="flow-column__label">Your profile</span><article className="flow-profile-node"><div className="flow-profile-node__ring">72%</div><h3>Haidar Ali</h3><p>Pakistan · Computing</p><div><span><Check size={13} /> 14 verified</span><span><AlertCircle size={13} /> 3 gaps</span></div></article></div>
+          <div className="flow-column flow-column--profile"><span className="flow-column__label">Your profile</span><article className="flow-profile-node"><div className="flow-profile-node__ring">{profileCompletion}%</div><h3>{studentName}</h3><p>{origin}</p><div><span><Check size={13} /> {verifiedRoutes} confirmed</span><span><AlertCircle size={13} /> {openRoutes} open</span></div></article></div>
           <div className="flow-column flow-column--evidence"><span className="flow-column__label">Evidence gates</span><FlowGate icon={GraduationCap} title="Academic fit" detail="Degree aligned" state="Verified" tone="green" /><FlowGate icon={FileCheck2} title="Mathematics" detail="Module proof needed" state="Review" tone="amber" /><FlowGate icon={WalletCards} title="Funding" detail="Award dependent" state="Conditional" tone="blue" /></div>
           <div className="flow-column flow-column--routes"><span className="flow-column__label">Live pathways</span>{items.slice(0, 3).map((item, index) => <FlowRoute key={item.id} item={item} rank={index + 1} onOpen={() => setSelectedFit(item)} />)}</div>
         </div>
