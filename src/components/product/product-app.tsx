@@ -79,7 +79,7 @@ export function ProductApp({ module }: ProductAppProps) {
   const [assessmentHandoff, setAssessmentHandoff] = useState<AssessmentHandoff | null>(null);
   const backend = useWorkspace();
   const catalogue = useOpportunities(backend.data?.portfolios);
-  const opportunityItems = catalogue.mode === "live" ? catalogue.items : opportunities;
+  const opportunityItems = catalogue.items.length ? catalogue.items : opportunities;
   const workspaceName = backend.data?.profile?.first_name || assessmentHandoff?.profile.firstName || "Student";
   const workspaceInitials = workspaceName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "SP";
 
@@ -150,6 +150,7 @@ export function ProductApp({ module }: ProductAppProps) {
 
         <div className="product-page">
           {module === "today" && <Today items={opportunityItems} profile={backend.data?.profile} completion={backend.data?.assessment?.completion_percent} handoff={assessmentHandoff} />}
+          {module === "report" && <StudentReport handoff={assessmentHandoff} />}
           {module === "discover" && <Discover query={query} setQuery={setQuery} items={opportunityItems} catalogueMode={catalogue.mode} catalogueError={catalogue.error} backend={backend} origin={backend.data?.profile?.nationality} intake={backend.data?.assessment?.answers?.intake} />}
           {module === "portfolio" && <Portfolio items={opportunityItems} live={catalogue.mode === "live"} />}
           {module === "applications" && <Applications />}
@@ -324,7 +325,7 @@ function Today({ items, profile, completion, handoff }: { items: Opportunity[]; 
   );
 }
 
-function Discover({ query, setQuery, items, catalogueMode, catalogueError, backend, origin, intake }: { query: string; setQuery: (value: string) => void; items: Opportunity[]; catalogueMode: "loading" | "demo" | "live"; catalogueError: string | null; backend: ReturnType<typeof useWorkspace>; origin?: string; intake?: string }) {
+function Discover({ query, setQuery, items, catalogueMode, catalogueError, backend, origin, intake }: { query: string; setQuery: (value: string) => void; items: Opportunity[]; catalogueMode: "loading" | "demo" | "live" | "live-discovery"; catalogueError: string | null; backend: ReturnType<typeof useWorkspace>; origin?: string; intake?: string }) {
   const [kind, setKind] = useState("All");
   const [sort, setSort] = useState("Recommended");
   const [fundingOnly, setFundingOnly] = useState(true);
@@ -362,12 +363,87 @@ function Discover({ query, setQuery, items, catalogueMode, catalogueError, backe
         <button onClick={() => { setFundingOnly(false); setVerifiedOnly(false); }}>Reset</button>
       </section>}
       <div className="active-filters"><span>{origin ? `${origin} profile` : "Origin eligibility"} <Check size={12} /></span>{fundingOnly && <span>Funding available <button onClick={() => setFundingOnly(false)}><X size={12} /></button></span>}{verifiedOnly && <span>Current sources <button onClick={() => setVerifiedOnly(false)}><X size={12} /></button></span>}{intake && <span>{intake} <Check size={12} /></span>}</div>
-      <div className="results-meta"><strong>{filtered.length} researched routes</strong><span>{catalogueMode === "live" ? "Live catalogue · ranked after eligibility checks" : catalogueMode === "loading" ? "Loading verified catalogue…" : "Demo catalogue · connect Supabase for live data"}</span></div>
+      <div className="results-meta"><strong>{filtered.length} researched routes</strong><span>{catalogueMode === "live" ? "Live catalogue · ranked after eligibility checks" : catalogueMode === "live-discovery" ? "Live discovery feed · third-party leads require official verification" : catalogueMode === "loading" ? "Loading verified catalogue…" : "Demo catalogue · connect Supabase for live data"}</span></div>
       {catalogueError && <div className="auth-message auth-message--error">{catalogueError}</div>}
       <div className="opportunity-grid opportunity-grid--results">{filtered.map((item) => <OpportunityCard key={item.id} item={item} detailed saved={saved.has(item.id)} onSave={() => void toggleSaved(item)} onOpen={() => setSelected(item)} />)}</div>
       {filtered.length === 0 && <EmptyState icon={Search} title="No routes match these filters" text="Remove one condition or broaden the subject. ScholarPath will preserve the rest of your search." action="Reset filters" onAction={() => { setQuery(""); setFundingOnly(false); setVerifiedOnly(false); setKind("All"); }} />}
       {selected && <FitDetailModal item={selected} onClose={() => setSelected(null)} />}
     </>
+  );
+}
+
+function StudentReport({ handoff }: { handoff: AssessmentHandoff | null }) {
+  if (!handoff) {
+    return <EmptyState icon={ClipboardCheck} title="Your pathway report starts with your profile" text="Complete the guided assessment so ScholarPath can validate your answers, expose uncertainty, and build an evidence-led action plan." action="Start assessment" onAction={() => { window.location.href = "/"; }} />;
+  }
+
+  const { profile, report } = handoff;
+  const priority = report.actionPlan.find((item) => !item.complete) ?? report.actionPlan[0];
+  return (
+    <div className="student-report">
+      <header className="student-report__hero">
+        <div>
+          <span className="product-eyebrow">Your pathway intelligence report</span>
+          <h1>{report.headline}</h1>
+          <p>{report.summary}</p>
+          <div className="student-report__hero-actions"><Link className="product-button product-button--primary" href="/workspace">Start action plan <ArrowRight size={16} /></Link><button className="product-button product-button--secondary" onClick={() => window.print()}>Print or save PDF</button></div>
+        </div>
+        <div className="report-score" style={{ "--report-score": `${report.profileCompleteness * 3.6}deg` } as React.CSSProperties}>
+          <span><strong>{report.profileCompleteness}%</strong><small>evidence profile</small></span>
+          <p><ShieldCheck size={15} /> {report.confidence} confidence</p>
+        </div>
+      </header>
+
+      <section className="report-priority">
+        <span><Target size={20} /></span>
+        <div><small>Highest-impact move</small><h2>{priority?.title}</h2><p>{priority?.detail}</p></div>
+        <Link href="/workspace">Open task <ArrowRight size={15} /></Link>
+      </section>
+
+      <section className="report-section">
+        <div className="report-section__head"><div><span className="product-eyebrow">Decision profile</span><h2>Where you are ready—and what is holding you back</h2></div><p>These are preparation signals, not admission probabilities.</p></div>
+        <div className="readiness-grid">
+          {(report.readiness ?? []).map((dimension) => <article key={dimension.id}>
+            <header><span>{dimension.label}</span><strong>{dimension.score}<small>/100</small></strong></header>
+            <i><b style={{ width: `${dimension.score}%` }} /></i>
+            <p>{dimension.summary}</p>
+            <div><Status text={dimension.state === "ready" ? "Ready signal" : dimension.state === "blocked" ? "Blocked" : "Developing"} /><small>{dimension.nextMove}</small></div>
+          </article>)}
+        </div>
+      </section>
+
+      <section className="report-section">
+        <div className="report-section__head"><div><span className="product-eyebrow">Validated understanding</span><h2>The facts driving this report</h2></div><Link href="/">Reassess <RefreshCw size={14} /></Link></div>
+        <div className="report-snapshot">{Object.entries(report.snapshot).map(([key, value]) => <article key={key}><span>{key}</span><strong>{value}</strong><small>{key === "academic" ? profile.institution : key === "goal" ? profile.destinationPreference === "suggest" ? "Destination selected by evidence" : `${profile.destinationPreference} preference` : "Student-declared fact"}</small></article>)}</div>
+      </section>
+
+      <section className="report-section">
+        <div className="report-section__head"><div><span className="product-eyebrow">Pathway comparison</span><h2>Three lanes, with every open condition visible</h2></div><p>Strong means research priority—not guaranteed success.</p></div>
+        <div className="report-pathways">{report.pathways.map((pathway, index) => <article key={pathway.id} className={index === 0 ? "is-primary" : ""}>
+          <header><span>{String(index + 1).padStart(2, "0")}</span><div><small>{pathway.strength} research lane</small><h3>{pathway.title}</h3><p>{pathway.subtitle}</p></div><Status text={pathway.state === "conditional" ? "Conditional" : pathway.state === "unknown" ? "Needs verification" : "Not recommended"} /></header>
+          <div><h4>Why it surfaced</h4>{pathway.why.map((reason) => <p key={reason}><Check size={14} />{reason}</p>)}</div>
+          <div className="report-pathway__conditions"><h4>Open conditions</h4>{pathway.conditions.length ? pathway.conditions.map((condition) => <p key={condition}><AlertCircle size={14} />{condition}</p>) : <p><Check size={14} />No shared profile condition is open.</p>}</div>
+          <footer><span><small>Next move</small><strong>{pathway.nextAction}</strong></span><a href={pathway.sourceUrl} target="_blank" rel="noreferrer">Research source <ExternalLink size={14} /></a></footer>
+        </article>)}</div>
+      </section>
+
+      <section className="report-section">
+        <div className="report-section__head"><div><span className="product-eyebrow">Live funding radar</span><h2>Scholarships worth verifying next</h2></div><span className="live-feed-label"><i /> Live discovery</span></div>
+        {report.liveScholarships?.length ? <div className="live-scholarship-grid">{report.liveScholarships.map((item) => <article key={item.id}>
+          <header><span>{item.country}</span><Status text="Needs verification" /></header><h3>{item.title}</h3><p>{item.provider}</p><strong>{item.value}</strong><small>{item.fundingType}</small>
+          <div>{item.fitReasons.map((reason) => <p key={reason}><Check size={13} />{reason}</p>)}</div>
+          <footer><a href={item.sourceUrl} target="_blank" rel="noreferrer">Verify with provider <ExternalLink size={14} /></a></footer>
+        </article>)}</div> : <div className="report-feed-empty"><Database size={20} /><span><strong>Live feed unavailable</strong><small>Your validated pathway and tasks are still ready. Refresh Discover later.</small></span></div>}
+        <p className="report-live-notice"><Info size={16} />{report.liveDataNotice ?? "Every live discovery item must be checked against the provider’s current official scholarship page."}</p>
+      </section>
+
+      <section className="report-bottom-grid">
+        <article className="report-section report-actions"><div className="report-section__head"><div><span className="product-eyebrow">Action plan</span><h2>What to do next</h2></div></div>{report.actionPlan.map((action, index) => <div key={action.id}><span>{index + 1}</span><p><small>{action.horizon} · {action.impact} impact</small><strong>{action.title}</strong><em>{action.detail}</em></p></div>)}</article>
+        <article className="report-section student-report__gaps"><span className="product-eyebrow">Evidence gaps</span><h2>What prevents confirmation</h2>{report.evidenceGaps.map((gap) => <p key={gap}><AlertCircle size={15} />{gap}</p>)}<footer><Lock size={15} /> Missing evidence becomes a task, never a guessed answer.</footer></article>
+      </section>
+
+      <section className="student-report__method"><ShieldCheck size={21} /><div><strong>Transparent by design</strong><p>{report.assumptions.join(" ")}</p></div></section>
+    </div>
   );
 }
 
@@ -697,6 +773,6 @@ function Notice({ icon: Icon, tone, title, text, time, read = false, onOpen }: {
 function HelpCard({ icon: Icon, title, text, onOpen }: { icon: typeof CircleHelp; title: string; text: string; onOpen?: () => void }) { return <button onClick={onOpen}><span><Icon size={19} /></span><h3>{title}</h3><p>{text}</p><ArrowRight size={15} /></button>; }
 function AdminModule({ icon: Icon, title, meta, onOpen }: { icon: typeof Database; title: string; meta: string; onOpen?: (title: string, meta: string) => void }) { return <button onClick={() => onOpen?.(title, meta)}><span><Icon size={19} /></span><div><strong>{title}</strong><small>{meta}</small></div><ArrowRight size={15} /></button>; }
 function pageTitle(module: string) {
-  const titles: Record<string, string> = { today: "Today", discover: "Discover", portfolio: "Portfolio", applications: "Applications", workspace: "Tasks", documents: "Documents", writing: "Writing", funding: "Funding", offers: "Offers", profile: "Profile & evidence", notifications: "Notifications", help: "Help & corrections", operations: "Research operations", admin: "Administration", opportunity: "Route details", settings: "Settings", "settings-notifications": "Notification settings", "settings-privacy": "Privacy & data", "settings-plan": "Plan & billing" };
+  const titles: Record<string, string> = { today: "Today", report: "Pathway report", discover: "Discover", portfolio: "Portfolio", applications: "Applications", workspace: "Tasks", documents: "Documents", writing: "Writing", funding: "Funding", offers: "Offers", profile: "Profile & evidence", notifications: "Notifications", help: "Help & corrections", operations: "Research operations", admin: "Administration", opportunity: "Route details", settings: "Settings", "settings-notifications": "Notification settings", "settings-privacy": "Privacy & data", "settings-plan": "Plan & billing" };
   return titles[module] ?? "ScholarPath";
 }

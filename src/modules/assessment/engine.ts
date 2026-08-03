@@ -3,6 +3,7 @@ import type {
   AssessmentInput,
   AssessmentReport,
   PathwayLane,
+  ReadinessDimension,
 } from "./types";
 
 const currencyLabels = {
@@ -16,10 +17,42 @@ function normalizedGrade(input: AssessmentInput) {
   return Math.round((input.gradeValue / input.gradeMaximum) * 100);
 }
 
-function routeRank(route: PathwayLane) {
+function routeRank(route: PathwayLane, preference: AssessmentInput["destinationPreference"]) {
   const strength = { strong: 3, promising: 2, explore: 1 };
   const state = { conditional: 3, unknown: 2, not_recommended: 1 };
-  return strength[route.strength] * 10 + state[route.state];
+  const preferredLane = preference === "UK" ? "uk" : preference === "Germany" ? "germany" : preference === "Europe" ? "erasmus" : null;
+  return (route.id === preferredLane ? 100 : 0) + strength[route.strength] * 10 + state[route.state];
+}
+
+function readinessState(score: number): ReadinessDimension["state"] {
+  if (score >= 75) return "ready";
+  if (score >= 50) return "developing";
+  return "blocked";
+}
+
+function languageSignal(input: AssessmentInput) {
+  if (input.englishStatus !== "completed" || !input.englishTest || input.englishScore == null) return 34;
+  if (input.englishTest === "IELTS") return Math.min(92, Math.round((input.englishScore / 9) * 100));
+  if (input.englishTest === "TOEFL") return Math.min(92, Math.round((input.englishScore / 120) * 100));
+  if (input.englishTest === "PTE") return Math.min(92, Math.round((input.englishScore / 90) * 100));
+  return 62;
+}
+
+function buildReadiness(input: AssessmentInput, grade: number): ReadinessDimension[] {
+  const language = languageSignal(input);
+  const academic = Math.max(35, Math.min(92, Math.round(grade * 0.82 + (input.completionStatus === "completed" ? 10 : 3))));
+  const evidenceCount = input.researchEvidence.includes("none") ? 0 : input.researchEvidence.length;
+  const evidence = Math.min(90, 42 + evidenceCount * 12 + (input.completionStatus === "completed" ? 8 : 0));
+  const funding = input.fundingNeed === "self" ? 82 : input.fundingNeed === "partial" ? 68 : input.fundingNeed === "major" ? 48 : 35;
+  const execution = Math.min(92, 44 + input.weeklyHours * 3 + (input.intake === "I am flexible" ? 5 : 0));
+  const dimensions: Array<Omit<ReadinessDimension, "state">> = [
+    { id: "academic", label: "Academic foundation", score: academic, summary: `${grade}% internal planning signal from the declared scale.`, nextMove: grade < 60 ? "Verify programme thresholds before shortlisting." : "Attach transcript and grading-scale evidence." },
+    { id: "language", label: "Language evidence", score: language, summary: input.englishStatus === "completed" ? `${input.englishTest} ${input.englishScore} declared, not yet document-verified.` : "No completed English result is available yet.", nextMove: input.englishStatus === "completed" ? "Upload the official score report." : "Choose an accepted test after shortlisting programmes." },
+    { id: "funding", label: "Funding feasibility", score: funding, summary: `${input.fundingNeed.replace("_", " ")} funding dependency recorded.`, nextMove: funding < 50 ? "Build a scholarship-first portfolio with a fallback lane." : "Model award, deposit and personal-contribution scenarios." },
+    { id: "evidence", label: "Evidence coverage", score: evidence, summary: evidenceCount ? `${evidenceCount} research or project evidence type${evidenceCount === 1 ? "" : "s"} declared.` : "No research or project evidence is documented yet.", nextMove: "Convert every declared claim into a named document or proof item." },
+    { id: "execution", label: "Execution capacity", score: execution, summary: `${input.weeklyHours} focused hours are available each week.`, nextMove: input.weeklyHours < 5 ? "Reduce the shortlist and protect critical deadlines." : "Run a weekly evidence and deadline review." },
+  ];
+  return dimensions.map((dimension) => ({ ...dimension, state: readinessState(dimension.score) }));
 }
 
 function commonConditions(input: AssessmentInput, grade: number) {
@@ -116,7 +149,7 @@ function buildPathways(input: AssessmentInput, grade: number): PathwayLane[] {
     evidenceState: "suggestion",
   };
 
-  return [uk, germany, erasmus].sort((a, b) => routeRank(b) - routeRank(a));
+  return [uk, germany, erasmus].sort((a, b) => routeRank(b, input.destinationPreference) - routeRank(a, input.destinationPreference));
 }
 
 function buildActions(input: AssessmentInput): ActionItem[] {
@@ -171,6 +204,7 @@ function buildActions(input: AssessmentInput): ActionItem[] {
 export function generateAssessmentReport(input: AssessmentInput): AssessmentReport {
   const grade = normalizedGrade(input);
   const pathways = buildPathways(input, grade);
+  const readiness = buildReadiness(input, grade);
   const evidenceGaps = [
     "Programme-specific academic threshold",
     "Official degree and grading-scale evidence",
@@ -195,6 +229,7 @@ export function generateAssessmentReport(input: AssessmentInput): AssessmentRepo
           ? `${input.englishTest ?? "English test"} declared`
           : "English evidence still in progress",
     },
+    readiness,
     strongestSignals: [
       `${input.fieldFamily} goal is structured`,
       `${input.weeklyHours} hours per week reserved`,

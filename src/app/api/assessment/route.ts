@@ -7,6 +7,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { guardMutation } from "@/lib/api/security";
 import { evaluateCatalogue } from "@/modules/recommendation/service";
+import { fetchLiveScholarships } from "@/modules/catalogue/live-scholarships";
 
 export async function POST(request: Request) {
   const blocked = await guardMutation(request, "assessment", { requests: 12, windowSeconds: 60 });
@@ -19,6 +20,11 @@ export async function POST(request: Request) {
   }
 
   const report = generateAssessmentReport(parsed.data);
+  const liveDiscovery = await fetchLiveScholarships(parsed.data, 6).catch(() => null);
+  report.liveScholarships = liveDiscovery?.items ?? [];
+  report.liveDataNotice = report.liveScholarships.length
+    ? "Live discovery results are third-party leads, not verified eligibility. ScholarPath will only promote them after an official source, cycle and deadline are attached."
+    : "The live discovery feed was unavailable. Your pathway report was generated from validated profile data and can be refreshed later.";
   if (isSupabaseConfigured) {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase!.auth.getUser();

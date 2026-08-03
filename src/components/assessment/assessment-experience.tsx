@@ -31,6 +31,7 @@ import {
   saveAssessmentDraft,
 } from "@/lib/draft-store";
 import { saveAssessmentHandoff } from "@/lib/assessment-handoff";
+import { getAssessmentStepIssue } from "@/modules/assessment/step-validation";
 import {
   fieldOptions,
   intakeOptions,
@@ -882,25 +883,7 @@ export function AssessmentExperience() {
     setDraft((current) => ({ ...current, ...patch }));
   };
 
-  const currentValid = useMemo(() => {
-    if (step === 0) return Boolean(draft.firstName?.trim());
-    if (step === 1) return Boolean(draft.nationality);
-    if (step === 2) return Boolean(draft.currentCountry);
-    if (step === 3) return Boolean(draft.qualification);
-    if (step === 4) return Boolean(draft.institution?.trim() && draft.fieldFamily);
-    if (step === 5) return Boolean(draft.gradeValue);
-    if (step === 6) return Boolean(draft.graduationYear && draft.completionStatus);
-    if (step === 7) return Boolean(draft.intake);
-    if (step === 8) return Boolean(draft.destinationPreference);
-    if (step === 9) return Boolean(draft.fundingNeed);
-    if (step === 10) return Boolean(draft.budgetCurrency);
-    if (step === 11) return Boolean(draft.englishStatus && (draft.englishStatus !== "completed" || (draft.englishTest && draft.englishScore)));
-    if (step === 12) return Boolean(draft.experienceRange);
-    if (step === 13) return Boolean(draft.researchEvidence?.length);
-    if (step === 14) return Boolean(draft.weeklyHours);
-    if (step === 15) return Boolean(draft.biggestBlocker);
-    return true;
-  }, [draft, step]);
+  const stepIssue = useMemo(() => getAssessmentStepIssue(draft, step), [draft, step]);
 
   const submit = async () => {
     setMode("analyzing");
@@ -921,7 +904,7 @@ export function AssessmentExperience() {
       saveAssessmentHandoff(draft, completedReport);
       setReport(completedReport);
       clearAssessmentDraft();
-      window.location.assign("/today");
+      window.location.assign("/report");
     } catch (submissionError) {
       setMode("assessment");
       setError(submissionError instanceof Error ? submissionError.message : "We could not build your pathway.");
@@ -938,6 +921,14 @@ export function AssessmentExperience() {
     setDirection(nextDirection);
     setStep(next);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const continueAssessment = () => {
+    if (stepIssue) {
+      setError(stepIssue);
+      return;
+    }
+    if (step === pages.length - 1) void submit();
+    else move(step + 1, "forward");
   };
 
   return (
@@ -966,7 +957,7 @@ export function AssessmentExperience() {
           </div>
           <footer className="form-footer">
             <Button variant="quiet" disabled={step === 0} onClick={() => move(step - 1, "back")}><ArrowLeft size={16} /> Back</Button>
-            <div>{error && <span className="form-error">{error}</span>}<Button disabled={!currentValid} onClick={() => step === pages.length - 1 ? void submit() : move(step + 1, "forward")}>{step === pages.length - 1 ? "Build my pathway" : "Continue"} <ArrowRight size={16} /></Button></div>
+            <div>{error && <span className="form-error" role="alert" aria-live="polite">{error}</span>}<Button aria-disabled={Boolean(stepIssue)} onClick={continueAssessment}>{step === pages.length - 1 ? "Build my pathway" : "Continue"} <ArrowRight size={16} /></Button></div>
           </footer>
         </section>
       </div>

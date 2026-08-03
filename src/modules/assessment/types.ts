@@ -130,6 +130,31 @@ export interface ProfileSnapshot {
   evidence: string;
 }
 
+export type ReadinessState = "ready" | "developing" | "blocked";
+
+export interface ReadinessDimension {
+  id: "academic" | "language" | "funding" | "evidence" | "execution";
+  label: string;
+  score: number;
+  state: ReadinessState;
+  summary: string;
+  nextMove: string;
+}
+
+export interface LiveScholarshipPreview {
+  id: string;
+  title: string;
+  provider: string;
+  country: string;
+  value: string;
+  fundingType: string;
+  eligibilitySummary: string;
+  sourceUrl: string;
+  sourceName: string;
+  verificationState: "third_party_discovery";
+  fitReasons: string[];
+}
+
 export interface AssessmentReport {
   generatedAt: string;
   profileCompleteness: number;
@@ -137,9 +162,12 @@ export interface AssessmentReport {
   headline: string;
   summary: string;
   snapshot: ProfileSnapshot;
+  readiness: ReadinessDimension[];
   strongestSignals: string[];
   evidenceGaps: string[];
   pathways: PathwayLane[];
   actionPlan: ActionItem[];
   assumptions: string[];
+  liveScholarships?: LiveScholarshipPreview[];
+  liveDataNotice?: string;
 }

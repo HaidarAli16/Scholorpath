@@ -3,6 +3,7 @@ import { ProductApp } from "@/components/product/product-app";
 
 const routes: Record<string, string> = {
   today: "today",
+  report: "report",
   discover: "discover",
   portfolio: "portfolio",
   applications: "applications",

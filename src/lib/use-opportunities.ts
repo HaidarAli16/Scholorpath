@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Opportunity } from "@/modules/product/demo-data";
+import type { LiveScholarshipPreview } from "@/modules/assessment/types";
 
 export type CatalogueItem = {
   id: string;
@@ -67,21 +68,26 @@ function countryFlag(code: string) {
 export function useOpportunities(portfolios?: unknown[]) {
   const [items, setItems] = useState<CatalogueItem[]>([]);
   const [recommendations, setRecommendations] = useState<RecommendationComponent[]>([]);
-  const [mode, setMode] = useState<"loading" | "demo" | "live">("loading");
+  const [discoveryItems, setDiscoveryItems] = useState<Opportunity[]>([]);
+  const [mode, setMode] = useState<"loading" | "demo" | "live" | "live-discovery">("loading");
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
-      const [catalogueResponse, recommendationResponse] = await Promise.all([
+      const [catalogueResponse, recommendationResponse, discoveryResponse] = await Promise.all([
         fetch("/api/catalogue?limit=50", { cache: "no-store" }),
         fetch("/api/recommendations/latest", { cache: "no-store" }),
+        fetch("/api/scholarships/live?limit=12", { cache: "no-store" }),
       ]);
       const catalogue = await catalogueResponse.json();
       if (!catalogueResponse.ok) throw new Error(catalogue.error || "Catalogue could not be loaded.");
       const latest = recommendationResponse.ok ? await recommendationResponse.json() : { results: [] };
       setItems(catalogue.items ?? []);
       setRecommendations(latest.results ?? []);
-      setMode(catalogue.mode === "live" ? "live" : "demo");
+      const discovery = discoveryResponse.ok ? await discoveryResponse.json() as { items?: LiveScholarshipPreview[] } : { items: [] };
+      const mappedDiscovery = (discovery.items ?? []).map(mapLiveScholarship);
+      setDiscoveryItems(mappedDiscovery);
+      setMode(catalogue.mode === "live" ? "live" : mappedDiscovery.length ? "live-discovery" : "demo");
       setError(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Catalogue could not be loaded.");
@@ -91,9 +97,32 @@ export function useOpportunities(portfolios?: unknown[]) {
 
   useEffect(() => { void refresh(); }, [refresh]);
 
-  const opportunities = useMemo<Opportunity[]>(() => mapCatalogueItems(items, recommendations, portfolios as Portfolio[] | undefined), [items, portfolios, recommendations]);
+  const opportunities = useMemo<Opportunity[]>(() => {
+    const combined = [...mapCatalogueItems(items, recommendations, portfolios as Portfolio[] | undefined), ...discoveryItems];
+    return [...new Map(combined.map((item) => [item.id, item])).values()];
+  }, [discoveryItems, items, portfolios, recommendations]);
 
   return { items: opportunities, mode, loading: mode === "loading", error, refresh };
+}
+
+function mapLiveScholarship(item: LiveScholarshipPreview): Opportunity {
+  const flags: Record<string, string> = { "United Kingdom": "GB", Germany: "DE", Netherlands: "NL", Ireland: "IE", "United States": "US", Canada: "CA", Australia: "AU" };
+  return {
+    id: item.id,
+    kind: "Scholarship",
+    title: item.title,
+    provider: item.provider,
+    country: item.country,
+    flag: flags[item.country] ?? "INT",
+    deadline: "Deadline unverified",
+    deadlineNote: "Live discovery lead · official cycle and deadline required",
+    value: item.value,
+    match: "Needs verification",
+    freshness: "Review due",
+    reasons: item.fitReasons.length ? item.fitReasons : ["Surfaced from a live third-party discovery feed"],
+    condition: item.eligibilitySummary,
+    sourceUrl: item.sourceUrl,
+  };
 }
 
 export function mapCatalogueItems(items: CatalogueItem[], recommendations: RecommendationComponent[], portfolios?: Portfolio[], now = Date.now()): Opportunity[] {
