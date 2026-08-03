@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 type Limit = { requests: number; windowSeconds: number };
 
@@ -25,6 +26,7 @@ export async function guardMutation(request: Request, scope: string, limit: Limi
     return NextResponse.json({ error: "Cross-origin request rejected.", requestId }, { status: 403 });
   }
   const admin = createSupabaseAdminClient();
+  if (!admin && !isSupabaseConfigured) return null;
   if (!admin) return process.env.NODE_ENV === "production"
     ? NextResponse.json({ error: "Server security configuration is incomplete.", requestId }, { status: 503 })
     : null;

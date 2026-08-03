@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { generateAssessmentReport } from "@/modules/assessment/engine";
 import { assessmentInputSchema } from "@/modules/assessment/schema";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { guardMutation } from "@/lib/api/security";
 import { evaluateCatalogue } from "@/modules/recommendation/service";
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
       if (error) return NextResponse.json({ error: "Your assessment could not be saved atomically.", detail: error.message }, { status: 500 });
       const assessmentId = (submission as { assessment_id?: string } | null)?.assessment_id ?? null;
       try {
-        const recommendation = await evaluateCatalogue(supabase!, parsed.data as unknown as Record<string, unknown>, { userId: user.id, assessmentId });
+        const recommendation = await evaluateCatalogue(supabase!, parsed.data as unknown as Record<string, unknown>, { userId: user.id, assessmentId, persistenceClient: createSupabaseAdminClient() });
         return NextResponse.json({ ...report, recommendation: { status: "ready", runId: recommendation.runId, resultCount: recommendation.results.length, results: recommendation.results } });
       } catch {
         return NextResponse.json({ ...report, recommendation: { status: "queued", resultCount: 0 } });
