@@ -39,3 +39,4 @@ jobs:
       - run: supabase db start
       - run: supabase db reset --local
       - run: supabase db lint --local --level warning
+      - run: supabase test db
