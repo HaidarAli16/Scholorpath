@@ -30,7 +30,9 @@ alter table public.tasks
 
 create unique index if not exists tasks_active_dedupe_idx
   on public.tasks(user_id, dedupe_key)
-  where dedupe_key is not null and state not in ('cancelled','not_applicable');
+  -- Newly-added enum labels cannot be referenced until this migration commits.
+  -- Not-applicable tasks remain auditable and retain their dedupe key.
+  where dedupe_key is not null and state <> 'cancelled';
 create index if not exists tasks_execution_order_idx on public.tasks(user_id, state, impact_score desc, due_at, position);
 
 create table if not exists public.task_dependencies (

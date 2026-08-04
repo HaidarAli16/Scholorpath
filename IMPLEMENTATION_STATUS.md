@@ -1,8 +1,34 @@
 # ScholarPath implementation status
 
+## Sprint 5: Country and institution intelligence
+
+Status: implemented, migrated and locally verified on 4 August 2026
+
+### Included
+
+- Country Intelligence for the United Kingdom, Germany, Netherlands and Ireland, covering city budgets, accommodation, deposits, visa fees, proof of funds, healthcare, work rights, post-study routes, transport, safety context, climate and community fit.
+- Institution Directory with 12 beta universities, campuses, official-source ranking facts, Pakistan/India/Bangladesh qualification equivalencies and institution requirements.
+- Rankings are evidence only; the recommendation engine now prioritises eligibility, academic fit, funding, deadline, source freshness, evidence readiness, affordability, visa feasibility, career alignment and student preference.
+- Mobile-ready `/api/countries`, `/api/institutions` and `/api/fx` routes with input validation, timeouts and an explicitly labelled curated fallback.
+- Versioned Supabase schema, row-level security, research-role publishing policies, reviewed beta sources and freshness dates.
+
+### Verification
+
+- 21 unit tests pass.
+- TypeScript strict-mode check passes.
+- Next.js production build passes with zero warnings.
+- `/countries`, `/institutions` and their supporting APIs return HTTP 200 locally.
+- Remote migrations `006`, `007` and `008` were applied to Supabase project `gbhzekncpqeytknxanzy`.
+
+### Deliberate beta boundary
+
+- The 12 institutions are a launch dataset, not a claim of global catalogue completeness.
+- Programme and scholarship records must only be published after current-cycle official-source review; discovery feeds cannot silently become recommendations.
+- A local or deployment environment needs the values documented in `.env.example` to use Supabase instead of the bundled fallback.
+
 ## Sprint 4: Production backend and live decision path
 
-Status: repository-ready and verified locally on 3 August 2026; remote migration pending
+Status: migrated and superseded by Sprint 5
 
 ### Included
 
@@ -35,9 +61,7 @@ Status: repository-ready and verified locally on 3 August 2026; remote migration
 
 ### Remaining live release gate
 
-- Apply the four migrations to Supabase project `gbhzekncpqeytknxanzy`.
-- Install production environment secrets, run Security/Performance Advisors and
-  complete the documented two-account isolation test before inviting beta users.
+- Install deployment environment secrets, rerun Supabase Security/Performance Advisors and complete the documented two-account isolation test before inviting beta users.
 
 ## Sprint 3: Complete frontend system
 

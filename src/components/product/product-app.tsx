@@ -21,10 +21,12 @@ import {
   Filter,
   FolderOpen,
   GraduationCap,
+  Globe2,
   Heart,
   Home,
   Info,
   LayoutDashboard,
+  Landmark,
   ListChecks,
   Lock,
   Mail,
@@ -52,10 +54,13 @@ import { loadAssessmentHandoff, type AssessmentHandoff } from "@/lib/assessment-
 import { TaskCommandCenter } from "@/components/tasks/task-command-center";
 import { OpportunityDetail, SettingsCenter, StudentProfileCenter } from "@/components/product/frontend-completion";
 import { uploadStudentDocument } from "@/lib/upload-document";
+import { CountryIntelligenceCenter, InstitutionDirectoryCenter } from "@/components/directory/education-directory";
 
 const primaryNav = [
   { href: "/today", label: "Today", icon: Home },
   { href: "/discover", label: "Discover", icon: Search },
+  { href: "/countries", label: "Countries", icon: Globe2 },
+  { href: "/institutions", label: "Institutions", icon: Landmark },
   { href: "/portfolio", label: "Portfolio", icon: Heart },
   { href: "/applications", label: "Applications", icon: ClipboardCheck },
   { href: "/workspace", label: "Workspace", icon: FolderOpen },
@@ -100,7 +105,7 @@ export function ProductApp({ module }: ProductAppProps) {
   }, []);
 
   const title = pageTitle(module);
-  const topSection = module === "today" ? "overview" : module === "discover" || module === "portfolio" || module === "opportunity" ? "pathways" : module === "applications" ? "applications" : module === "documents" ? "documents" : "plan";
+  const topSection = module === "today" ? "overview" : ["discover", "countries", "institutions", "portfolio", "opportunity"].includes(module) ? "pathways" : module === "applications" ? "applications" : module === "documents" ? "documents" : "plan";
 
   return (
     <div className="product-app product-app--dashboard">
@@ -152,6 +157,8 @@ export function ProductApp({ module }: ProductAppProps) {
           {module === "today" && <Today items={opportunityItems} profile={backend.data?.profile} completion={backend.data?.assessment?.completion_percent} handoff={assessmentHandoff} />}
           {module === "report" && <StudentReport handoff={assessmentHandoff} />}
           {module === "discover" && <Discover query={query} setQuery={setQuery} items={opportunityItems} catalogueMode={catalogue.mode} catalogueError={catalogue.error} backend={backend} origin={backend.data?.profile?.nationality} intake={backend.data?.assessment?.answers?.intake} />}
+          {module === "countries" && <CountryIntelligenceCenter />}
+          {module === "institutions" && <InstitutionDirectoryCenter />}
           {module === "portfolio" && <Portfolio items={opportunityItems} live={catalogue.mode === "live"} />}
           {module === "applications" && <Applications />}
           {module === "workspace" && <Tasks />}
@@ -182,6 +189,8 @@ type DetailData = { eyebrow: string; title: string; description: string; status?
 const commandItems = [
   { href: "/today", label: "Today", detail: "Priority action and pathway changes", icon: Home },
   { href: "/discover", label: "Discover", detail: "Verified programmes and scholarships", icon: Search },
+  { href: "/countries", label: "Countries", detail: "Visa, cost, work, housing and city intelligence", icon: Globe2 },
+  { href: "/institutions", label: "Institutions", detail: "Universities, rankings and qualification equivalence", icon: Landmark },
   { href: "/portfolio", label: "Portfolio", detail: "Saved routes and comparison", icon: Heart },
   { href: "/applications", label: "Applications", detail: "Requirements, evidence, and progress", icon: ClipboardCheck },
   { href: "/workspace", label: "Tasks", detail: "Deadline and dependency plan", icon: ListChecks },
@@ -803,6 +812,6 @@ function Notice({ icon: Icon, tone, title, text, time, read = false, onOpen }: {
 function HelpCard({ icon: Icon, title, text, onOpen }: { icon: typeof CircleHelp; title: string; text: string; onOpen?: () => void }) { return <button onClick={onOpen}><span><Icon size={19} /></span><h3>{title}</h3><p>{text}</p><ArrowRight size={15} /></button>; }
 function AdminModule({ icon: Icon, title, meta, onOpen }: { icon: typeof Database; title: string; meta: string; onOpen?: (title: string, meta: string) => void }) { return <button onClick={() => onOpen?.(title, meta)}><span><Icon size={19} /></span><div><strong>{title}</strong><small>{meta}</small></div><ArrowRight size={15} /></button>; }
 function pageTitle(module: string) {
-  const titles: Record<string, string> = { today: "Today", report: "Pathway report", discover: "Discover", portfolio: "Portfolio", applications: "Applications", workspace: "Tasks", documents: "Documents", writing: "Writing", funding: "Funding", offers: "Offers", profile: "Profile & evidence", notifications: "Notifications", help: "Help & corrections", operations: "Research operations", admin: "Administration", opportunity: "Route details", settings: "Settings", "settings-notifications": "Notification settings", "settings-privacy": "Privacy & data", "settings-plan": "Plan & billing" };
+  const titles: Record<string, string> = { today: "Today", report: "Pathway report", discover: "Discover", countries: "Country intelligence", institutions: "Institution directory", portfolio: "Portfolio", applications: "Applications", workspace: "Tasks", documents: "Documents", writing: "Writing", funding: "Funding", offers: "Offers", profile: "Profile & evidence", notifications: "Notifications", help: "Help & corrections", operations: "Research operations", admin: "Administration", opportunity: "Route details", settings: "Settings", "settings-notifications": "Notification settings", "settings-privacy": "Privacy & data", "settings-plan": "Plan & billing" };
   return titles[module] ?? "ScholarPath";
 }

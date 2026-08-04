@@ -31,6 +31,9 @@ Validated student facts
 - Task generation: unresolved high-impact requirements become ordered tasks with evidence requirements.
 - Auditability: engine version, source versions, rule outcomes, actual values and expected values are retained.
 - Research operations: source capture, atomic facts, independent review, conflicts, freshness and downstream impact are represented in the operations workspace.
+- Country feasibility: immigration, proof-of-funds, healthcare, work, post-study, city cost, housing, transport, safety context, climate and community signals are independently sourced and review-dated.
+- Institution intelligence: universities, campuses, ranking facts, origin-country equivalencies and document requirements are stored separately from programmes.
+- Ranking guardrail: prestige is shown as an optional sourced fact and never overrides eligibility, affordability, evidence, deadline or visa feasibility.
 
 ## Data policy
 
@@ -51,6 +54,8 @@ Migration `202608030005_005_intelligence_engine.sql` adds:
 - `store_intelligence_report(...)`
 
 All tables use row-level security. Students can read only their records; writes occur through the controlled database function.
+
+Migrations `202608040007_007_education_directory.sql` and `202608040008_008_beta_education_data.sql` add the country, city, institution, campus, ranking, equivalency, requirement and intake truth layers plus the reviewed four-country beta dataset.
 
 ## UX research applied
 
