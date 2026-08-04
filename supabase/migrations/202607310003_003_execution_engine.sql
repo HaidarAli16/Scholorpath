@@ -1,6 +1,9 @@
 -- ScholarPath execution engine: tasks, dependencies, evidence, impact and readiness.
 -- Run after 002_complete_product.sql in the Supabase SQL editor.
 
+alter type public.task_state add value if not exists 'ready_for_review';
+alter type public.task_state add value if not exists 'not_applicable';
+
 alter table public.tasks
   add column if not exists impact_type text not null default 'application_readiness'
     check (impact_type in ('eligibility','application_readiness','scholarship','funding','deadline','document','offer','visa','profile','research')),
@@ -27,7 +30,9 @@ alter table public.tasks
 
 create unique index if not exists tasks_active_dedupe_idx
   on public.tasks(user_id, dedupe_key)
-  where dedupe_key is not null and state not in ('cancelled','not_applicable');
+  -- Newly-added enum labels cannot be referenced until this migration commits.
+  -- Not-applicable tasks remain auditable and retain their dedupe key.
+  where dedupe_key is not null and state <> 'cancelled';
 create index if not exists tasks_execution_order_idx on public.tasks(user_id, state, impact_score desc, due_at, position);
 
 create table if not exists public.task_dependencies (
