@@ -7,7 +7,7 @@ values
   ('https://courses.leeds.ac.uk/d053/data-science-statistics-msc', 'institution', 'University of Leeds', 'GB', 'verified', '2026-08-04', '2026-09-04', '2026 online course, intake, entry context and fees'),
   ('https://www.uni-saarland.de/en/study/programmes/master/data-science.html', 'institution', 'Saarland University', 'DE', 'verified', '2026-08-04', '2026-09-04', 'DSAI curriculum, prerequisites, language, tuition and application windows'),
   ('https://www.tcd.ie/courses/postgraduate/courses/computer-science---data-science--mscpgraddip/', 'institution', 'Trinity College Dublin', 'IE', 'verified', '2026-08-04', '2026-09-04', 'Data Science course, intake, capacity and admission requirements'),
-  ('https://www.tcd.ie/courses/postgraduate/fees/', 'institution', 'Trinity College Dublin', 'IE', 'verified', '2026-08-04', '2026/27 postgraduate fee schedule'),
+  ('https://www.tcd.ie/courses/postgraduate/fees/', 'institution', 'Trinity College Dublin', 'IE', 'verified', '2026-08-04', '2026-09-04', '2026/27 postgraduate fee schedule'),
   ('https://www.chevening.org/scholarships/application-timeline/', 'government', 'Chevening / UK Government', 'GB', 'verified', '2026-08-04', '2026-09-04', '2027-28 opening, closing and offer dates'),
   ('https://hea.ie/policy/internationalisation/goi-ies/', 'government_agency', 'Higher Education Authority Ireland', 'IE', 'verified', '2026-08-04', '2026-10-01', '2026 award, eligibility, value and closed deadline'),
   ('https://www.studyinnl.org/finances/nl-scholarship', 'government_agency', 'Nuffic / Study in NL', 'NL', 'verified', '2026-08-04', '2026-09-15', '2026-27 value, non-EEA eligibility and participating institutions'),
