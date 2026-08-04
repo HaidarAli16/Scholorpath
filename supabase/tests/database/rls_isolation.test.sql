@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(7);
+select plan(9);
 
 insert into auth.users
   (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data)
@@ -44,6 +44,10 @@ select set_config('request.jwt.claims', '{"role":"anon"}', true);
 
 select ok((select count(*) from public.programmes) >= 2, 'anonymous catalogue exposes published programmes');
 select is((select count(*) from public.programmes where state = 'stale'), 0::bigint, 'anonymous catalogue hides stale programmes');
+
+reset role;
+select ok(not has_function_privilege('anon', 'public.can_research_write()', 'execute'), 'anonymous role cannot execute research authorization helper');
+select ok(not has_function_privilege('anon', 'public.is_staff()', 'execute'), 'anonymous role cannot execute staff authorization helper');
 
 select * from finish();
 rollback;
