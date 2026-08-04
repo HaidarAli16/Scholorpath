@@ -1,5 +1,26 @@
 # ScholarPath implementation status
 
+## Sprint 6: Beta release readiness
+
+Status: implementation complete; production credentials and deployment validation remain environment-owned
+
+### Included
+
+- Source-backed beta catalogue with current and explicitly stale programme/scholarship cycles; closed records cannot enter recommendations.
+- Official-source records for Leeds, Saarland, Trinity, Chevening, GOI-IES, NL Scholarship and DAAD EPOS.
+- Conservative versioned eligibility rules using only profile fields supported by the assessment model.
+- Research Operations and Administration now read protected live counts or show a clear setup/access state; fabricated operational metrics were removed.
+- Automated pgTAP isolation coverage for two unrelated students plus anonymous published/stale catalogue visibility.
+- GitHub database quality gate now runs the RLS database tests after a full local reset.
+
+### Environment-owned release gates
+
+- Add Supabase URL, publishable key and server secret to local/Vercel environments.
+- Re-authenticate Supabase administration, run Security/Performance Advisors and deploy migration `009`.
+- Configure Auth redirect URLs, SMTP, outbox delivery, monitoring and a support inbox.
+- Create the first verified admin account and assign research roles.
+- Deploy a Vercel preview, perform the signed-in browser acceptance journey and then promote it.
+
 ## Sprint 5: Country and institution intelligence
 
 Status: implemented, migrated and locally verified on 4 August 2026

@@ -95,4 +95,4 @@ The engine output is a research priority, never an admission, scholarship or vis
 
 ## Current deployment status
 
-Repository implementation and application checks are ready. A production database push still requires a working Supabase MCP/CLI authentication session and the project environment keys. Do not mark the backend live until migrations, advisors and the two-account isolation test pass against project `gbhzekncpqeytknxanzy`.
+Migrations through `008` were previously applied to project `gbhzekncpqeytknxanzy`. Migration `009` adds the first verified programme/scholarship beta catalogue and must be deployed through the controlled workflow. Repository application checks and the fresh-database quality gate are required before merge. Production still requires a working Supabase MCP/CLI authentication session, project environment keys, Security/Performance Advisors and a signed-in preview acceptance test.

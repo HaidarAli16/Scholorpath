@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { guardMutation } from "@/lib/api/security";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 const operationSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("capture_source"), canonicalUrl: z.string().url(), sourceType: z.string().trim().min(2).max(80), ownerName: z.string().trim().min(2).max(160), countryCode: z.string().trim().max(3).optional(), verificationNotes: z.string().max(2000).optional() }),
@@ -20,6 +21,7 @@ async function staffContext() {
 }
 
 export async function GET() {
+  if (!isSupabaseConfigured) return NextResponse.json({ error: "Supabase is not configured for this environment." }, { status: 503 });
   const { supabase, user, roles } = await staffContext();
   if (!supabase || !user || !roles.some((role) => ["research_operator", "research_reviewer", "support", "admin"].includes(role))) return NextResponse.json({ error: "Staff access required." }, { status: 403 });
   const [sources, facts, programmes, scholarships, corrections] = await Promise.all([
