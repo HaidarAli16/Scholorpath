@@ -80,12 +80,6 @@ alter policy "published scholarships readable" on public.scholarships using (sta
 alter policy "published rules readable" on public.atomic_rules using (state = 'published');
 alter policy "published facts readable" on public.fact_records using (state = 'published');
 
-alter policy "staff manage programmes" on public.programmes to authenticated;
-alter policy "staff manage scholarships" on public.scholarships to authenticated;
-alter policy "staff manage rules" on public.atomic_rules to authenticated;
-alter policy "staff manage snapshots" on public.source_snapshots to authenticated;
-alter policy "staff manage facts" on public.fact_records to authenticated;
-alter policy "staff manage source records" on public.source_records to authenticated;
 alter policy "research manages programmes" on public.programmes to authenticated;
 alter policy "research manages scholarships" on public.scholarships to authenticated;
 alter policy "research manages rules" on public.atomic_rules to authenticated;
