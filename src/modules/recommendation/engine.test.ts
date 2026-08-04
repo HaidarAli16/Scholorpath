@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareRuleValue, evaluateRecommendations, type AtomicRule, type RecommendationEntity } from "./engine";
+import { compareRuleValue, evaluateRecommendations, recommendationEngineVersion, type AtomicRule, type RecommendationEntity } from "./engine";
 
 const rule = (partial: Partial<AtomicRule> = {}): AtomicRule => ({
   id: crypto.randomUUID(), ruleKey: "grade", ruleGroup: "academic", operator: "gte", profileField: "grade",
@@ -45,6 +45,13 @@ describe("recommendation rules", () => {
     const [result] = evaluateRecommendations({ grade: 80 }, [entity()], new Date("2026-08-01T00:00:00Z"));
     expect(result.evidenceConfidence).toBe(100);
     expect(result.requirementEvaluations[0]).toMatchObject({ ruleKey: "grade", outcome: "pass", actual: 80, expected: 70 });
-    expect(result.auditTrace.join(" ")).toContain("rules-3.0.0-evidence-audit");
+    expect(result.auditTrace.join(" ")).toContain(recommendationEngineVersion);
+  });
+
+  it("includes country feasibility and destination preference in the score", () => {
+    const [preferred] = evaluateRecommendations({ grade: 80, destinationPreference: "Germany" }, [entity({ countryCode: "DE", affordabilitySignal: 9, visaFeasibilitySignal: 7, careerSignal: 8 })], new Date("2026-08-01T00:00:00Z"));
+    const [other] = evaluateRecommendations({ grade: 80, destinationPreference: "Germany" }, [entity({ countryCode: "GB", affordabilitySignal: 3, visaFeasibilitySignal: 5, careerSignal: 5 })], new Date("2026-08-01T00:00:00Z"));
+    expect(preferred.scoreComponents.preference).toBeGreaterThan(other.scoreComponents.preference);
+    expect(preferred.scoreComponents.affordability).toBeGreaterThan(other.scoreComponents.affordability);
   });
 });

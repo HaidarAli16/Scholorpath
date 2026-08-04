@@ -5,6 +5,8 @@ const routes: Record<string, string> = {
   today: "today",
   report: "report",
   discover: "discover",
+  countries: "countries",
+  institutions: "institutions",
   portfolio: "portfolio",
   applications: "applications",
   workspace: "workspace",

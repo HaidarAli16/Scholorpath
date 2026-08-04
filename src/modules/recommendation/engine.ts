@@ -21,6 +21,9 @@ export type RecommendationEntity = {
   countryCode?: string | null;
   deadlineAt?: string | null;
   fundingSignal?: number;
+  affordabilitySignal?: number;
+  visaFeasibilitySignal?: number;
+  careerSignal?: number;
   sourceFreshness: "verified" | "review_due" | "stale";
   rules: AtomicRule[];
 };
@@ -32,6 +35,10 @@ export type ScoreComponents = {
   deadline: number;
   freshness: number;
   evidence: number;
+  affordability: number;
+  visaFeasibility: number;
+  careerAlignment: number;
+  preference: number;
 };
 
 export type RecommendationResult = {
@@ -53,8 +60,8 @@ export type RecommendationResult = {
   auditTrace: string[];
 };
 
-export const recommendationEngineVersion = "rules-3.0.0-evidence-audit";
-export const recommendationWeights = Object.freeze({ eligibility: 35, fit: 25, funding: 15, deadline: 10, freshness: 10, evidence: 5 });
+export const recommendationEngineVersion = "rules-4.0.0-country-institution-intelligence";
+export const recommendationWeights = Object.freeze({ eligibility: 30, fit: 20, funding: 12, deadline: 8, freshness: 7, evidence: 5, affordability: 8, visaFeasibility: 5, careerAlignment: 3, preference: 2 });
 
 function readPath(profile: Record<string, unknown>, path: string) {
   return path.split(".").reduce<unknown>((value, key) => value && typeof value === "object" ? (value as Record<string, unknown>)[key] : undefined, profile);
@@ -84,13 +91,24 @@ function componentScore(passed: number, known: number, maximum: number, emptySco
 }
 
 function deadlineScore(deadlineAt: string | null | undefined, now: Date) {
-  if (!deadlineAt) return { score: 3, expired: false, reason: "Deadline is not yet verified." };
+  if (!deadlineAt) return { score: 2.4, expired: false, reason: "Deadline is not yet verified." };
   const days = (new Date(deadlineAt).getTime() - now.getTime()) / 86_400_000;
   if (days < 0) return { score: 0, expired: true, reason: "The published deadline has passed." };
-  if (days < 14) return { score: 2, expired: false, reason: "Less than two weeks remain; evidence feasibility is high risk." };
-  if (days < 30) return { score: 5, expired: false, reason: "Less than one month remains; act immediately." };
-  if (days < 60) return { score: 8, expired: false, reason: "The deadline is feasible with focused execution." };
-  return { score: 10, expired: false, reason: "The current deadline leaves a workable preparation window." };
+  if (days < 14) return { score: 1.6, expired: false, reason: "Less than two weeks remain; evidence feasibility is high risk." };
+  if (days < 30) return { score: 4, expired: false, reason: "Less than one month remains; act immediately." };
+  if (days < 60) return { score: 6.4, expired: false, reason: "The deadline is feasible with focused execution." };
+  return { score: 8, expired: false, reason: "The current deadline leaves a workable preparation window." };
+}
+
+function signalScore(signal: number | undefined, maximum: number, fallback: number) {
+  return Math.round(Math.max(0, Math.min(10, signal ?? fallback)) / 10 * maximum * 100) / 100;
+}
+
+function preferenceScore(profile: Record<string, unknown>, countryCode?: string | null) {
+  const preference = String(profile.destinationPreference ?? "suggest");
+  if (preference === "suggest") return 1;
+  const matches = preference === "UK" ? countryCode === "GB" : preference === "Germany" ? countryCode === "DE" : preference === "Europe" ? ["DE", "NL", "IE", "EU"].includes(countryCode ?? "") : false;
+  return matches ? recommendationWeights.preference : 0.5;
 }
 
 export function evaluateRecommendations(profile: Record<string, unknown>, entities: RecommendationEntity[], now = new Date()): RecommendationResult[] {
@@ -139,12 +157,16 @@ export function evaluateRecommendations(profile: Record<string, unknown>, entiti
 
     const hardUnknown = counts.hard.total - counts.hard.known;
     const components: ScoreComponents = {
-      eligibility: componentScore(counts.hard.pass, counts.hard.total, recommendationWeights.eligibility, counts.hard.total ? 0 : 12),
-      fit: componentScore(counts.soft.pass, counts.soft.total, recommendationWeights.fit, 8),
-      funding: Math.round(Math.max(0, Math.min(10, entity.fundingSignal ?? 5)) * 1.5 * 100) / 100,
+      eligibility: componentScore(counts.hard.pass, counts.hard.total, recommendationWeights.eligibility, counts.hard.total ? 0 : 10),
+      fit: componentScore(counts.soft.pass, counts.soft.total, recommendationWeights.fit, 6),
+      funding: signalScore(entity.fundingSignal, recommendationWeights.funding, 5),
       deadline: deadline.score,
-      freshness: entity.sourceFreshness === "verified" ? 10 : entity.sourceFreshness === "review_due" ? 5 : 0,
+      freshness: entity.sourceFreshness === "verified" ? recommendationWeights.freshness : entity.sourceFreshness === "review_due" ? recommendationWeights.freshness / 2 : 0,
       evidence: componentScore(counts.information.pass, counts.information.total, recommendationWeights.evidence, 0),
+      affordability: signalScore(entity.affordabilitySignal, recommendationWeights.affordability, 5),
+      visaFeasibility: signalScore(entity.visaFeasibilitySignal, recommendationWeights.visaFeasibility, 5),
+      careerAlignment: signalScore(entity.careerSignal, recommendationWeights.careerAlignment, 5),
+      preference: preferenceScore(profile, entity.countryCode),
     };
     const rawScore = Object.values(components).reduce((sum, value) => sum + value, 0);
     const state: RecommendationResult["state"] = entity.sourceFreshness === "stale" ? "stale" : failedGates.length ? "failed" : hardUnknown || openChecks.length ? "conditional" : entity.rules.length ? "confirmed" : "unknown";
@@ -160,6 +182,7 @@ export function evaluateRecommendations(profile: Record<string, unknown>, entiti
       `${knownRules} requirements had a usable profile value; ${entity.rules.length - knownRules} remained unknown.`,
       `${failedGates.length} hard gates failed and ${openChecks.length} checks remained open.`,
       `Source state: ${entity.sourceFreshness}; research priority is not an admission or award probability.`,
+      `Country layer contributed affordability, visa-feasibility, post-study and destination-preference signals.`,
     ];
 
     return {

@@ -1,9 +1,6 @@
 -- ScholarPath execution engine: tasks, dependencies, evidence, impact and readiness.
 -- Run after 002_complete_product.sql in the Supabase SQL editor.
 
-alter type public.task_state add value if not exists 'ready_for_review';
-alter type public.task_state add value if not exists 'not_applicable';
-
 alter table public.tasks
   add column if not exists impact_type text not null default 'application_readiness'
     check (impact_type in ('eligibility','application_readiness','scholarship','funding','deadline','document','offer','visa','profile','research')),

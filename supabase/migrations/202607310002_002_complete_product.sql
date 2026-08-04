@@ -4,7 +4,7 @@
 create type public.app_role as enum ('student', 'research_operator', 'research_reviewer', 'support', 'admin');
 create type public.record_state as enum ('draft', 'in_review', 'published', 'stale', 'conflict', 'archived');
 create type public.match_state as enum ('confirmed', 'conditional', 'failed', 'unknown', 'stale');
-create type public.task_state as enum ('todo', 'in_progress', 'blocked', 'waiting', 'completed', 'cancelled');
+create type public.task_state as enum ('todo', 'in_progress', 'blocked', 'waiting', 'ready_for_review', 'completed', 'cancelled', 'not_applicable');
 create type public.application_state as enum ('considering', 'preparing', 'ready', 'submitted', 'decision', 'withdrawn', 'archived');
 
 create table public.user_roles (
