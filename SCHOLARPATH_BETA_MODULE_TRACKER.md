@@ -13,7 +13,7 @@
 | Module | Status | Beta decision | Missing before beta |
 |---|---|---|---|
 | M00 Design system and shell | Partial | Ship | Founder sign-off and live desktop/mobile check |
-| M01 Account, consent and security | Blocked | Must ship | Supabase keys, redirects, first admin, recovery and two-user isolation |
+| M01 Account, consent and security | Blocked | Must ship | Supabase keys, Auth redirects, first admin, recovery, Terms/Privacy pages, versioned consent capture and two-user isolation |
 | M02 Profile and evidence | Partial | Must ship | Live persistence and signed-in profile completion test |
 | M03 Education truth system | Partial | Must ship | Deploy 009–010 and independently review 5 more current opportunities |
 | M04 Eligibility engine | Partial | Must ship | Production catalogue regression and golden profiles |
