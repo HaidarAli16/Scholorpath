@@ -1,0 +1,4 @@
+interface:
+  display_name: "ScholarPath Release Manager"
+  short_description: "Audit and drive ScholarPath beta readiness"
+  default_prompt: "Use $scholarpath-release-manager to audit ScholarPath and update its concise beta readiness report."
