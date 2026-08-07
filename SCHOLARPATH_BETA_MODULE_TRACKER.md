@@ -2,7 +2,7 @@
 
 **Target:** Controlled invite-only beta on **14 August 2026**
 
-**Updated:** 6 August 2026 · **8 calendar days remaining**
+**Updated:** 7 August 2026 · **7 calendar days remaining**
 
 **Verdict:** Launch is feasible only with a strict beta scope. The product has strong local foundations but is not live-ready until Supabase, Auth and deployment are connected and tested.
 
@@ -13,9 +13,9 @@
 | Module | Status | Beta decision | Missing before beta |
 |---|---|---|---|
 | M00 Design system and shell | Partial | Ship | Founder sign-off and live desktop/mobile check |
-| M01 Account, consent and security | Blocked | Must ship | Supabase keys, Auth redirects, first admin, recovery, Terms/Privacy pages, versioned consent capture and two-user isolation |
+| M01 Account, consent and security | Blocked | Must ship | MCP, project URL and publishable key are connected; server secret, Auth redirects, first admin, recovery, Terms/Privacy pages, versioned consent capture and two-user isolation remain |
 | M02 Profile and evidence | Partial | Must ship | Live persistence and signed-in profile completion test |
-| M03 Education truth system | Partial | Must ship | Deploy 009–010 and independently review 5 more current opportunities |
+| M03 Education truth system | Partial | Must ship | Migrations 009–010 are live; independently review 5 more current opportunities |
 | M04 Eligibility engine | Partial | Must ship | Production catalogue regression and golden profiles |
 | M05 Recommendation engine | Partial | Must ship | Thirty golden profiles, fairness review and live stored runs |
 | M06 Discovery and details | Partial | Must ship | Ten live opportunities and production acceptance |
@@ -35,9 +35,10 @@
 - 21 unit tests, 9 pgTAP security assertions, 21 API routes and 10 migrations exist.
 - Catalogue code has **2 published programmes + 3 published scholarships**; launch target is 10 reviewed opportunities.
 - Country data covers 4 countries and 9 cities; directory has 12 institutions but only 4 ranking records.
-- Production migrations after 008 are unverified.
-- No `.env.local`, Vercel link, GitHub deployment, repository secrets or `beta` environment exists.
-- Important flows therefore still use demo or curated-fallback data.
+- Production migrations are verified through 010.
+- Local Supabase URL and publishable key are configured; the server-only secret is still missing.
+- No Vercel link, GitHub deployment, repository secrets or `beta` environment exists.
+- Live Auth can now be connected locally, but server-authoritative persistence and the signed-in acceptance journey remain blocked by the missing server secret and Auth configuration.
 
 ## Eight-day launch plan
 
@@ -55,8 +56,8 @@
 
 ## Immediate blockers
 
-1. User must complete Supabase authentication.
-2. Supabase and Vercel environment values must be configured securely.
+1. Add the Supabase server-only secret securely; never commit or expose it to the browser.
+2. Configure Supabase Auth redirects, email delivery, first admin and Vercel environment values.
 3. Five more current opportunities need independent review.
 4. Thirty golden profiles and one signed-in end-to-end test are missing.
 5. A working support/feedback channel and error monitoring are missing.
