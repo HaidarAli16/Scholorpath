@@ -1,3 +1,5 @@
+export const preferredRegion = "sin1";
+
 import { NextResponse } from "next/server";
 import { unstable_cache } from "next/cache";
 import { z } from "zod";

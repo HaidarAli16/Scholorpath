@@ -1,3 +1,5 @@
+export const preferredRegion = "sin1";
+
 import { after, NextResponse } from "next/server";
 import { createHash, randomUUID } from "node:crypto";
 import { generateAssessmentReport } from "@/modules/assessment/engine";

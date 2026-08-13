@@ -1,3 +1,5 @@
+export const preferredRegion = "sin1";
+
 import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";

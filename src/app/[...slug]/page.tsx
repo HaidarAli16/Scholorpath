@@ -1,3 +1,5 @@
+export const preferredRegion = "sin1";
+
 import { notFound } from "next/navigation";
 import { redirect } from "next/navigation";
 import { ProductApp } from "@/components/product/product-app";

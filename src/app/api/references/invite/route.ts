@@ -1,3 +1,5 @@
+export const preferredRegion = "sin1";
+
 import { createHash, randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";

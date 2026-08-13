@@ -1,3 +1,5 @@
+export const preferredRegion = "sin1";
+
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { fetchLiveScholarships } from "@/modules/catalogue/live-scholarships";
