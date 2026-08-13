@@ -19,7 +19,7 @@ Fresh verification on 13 August 2026: typecheck, lint, all 25 automated tests an
 | Deployment | Done | Optimized production deployment is READY and public at `candidroute-taatuftech-1331s-projects.vercel.app`; home, robots, sitemap and core public APIs return 200. |
 | Admin and CMS | Code + DB verified | Admins can manage access/plans, core education content, ingestion, support, audit and settings from one protected control plane; authenticated visual acceptance remains. |
 
-Admin acceptance correction: generic sign-in and OAuth callback redirects are now role-aware. Administrators default to `/admin`, staff default to `/operations`, students default to `/today`, and an explicit safe `next` destination still takes precedence.
+Admin acceptance correction: generic sign-in and OAuth callback redirects are now role-aware. Administrators default to `/admin`, staff default to `/operations`, students default to `/today`, and an explicit safe `next` destination still takes precedence. Commit `91cf709` is live as deployment `dpl_24s2b6DvVMkHjeMbqhuXhNan5nDw` at the stable alias.
 
 ## Performance engineering pass — 13 August 2026
 
