@@ -6,12 +6,12 @@ The 14 August beta framing has been removed. Current product truth now lives in 
 
 ## Immediate status
 
-Fresh local verification on 13 August 2026: typecheck, all 25 automated tests and the production build pass. Vercel is publicly reachable, Supabase migration parity is 32/32, and the entitlement schema is live. The current worktree still needs commit, push and final deployment smoke testing.
+Fresh local verification on 13 August 2026: typecheck, all 25 automated tests and the production build pass. Vercel is publicly reachable, Supabase migration parity is 33/33, and the entitlement schema is live. The current worktree still needs commit, push and final deployment smoke testing.
 
 | Area | Status | One-line truth |
 |---|---|---|
 | UI shell | Partial | All 29 annotated UX defects are closed at the target desktop viewport; cross-device and mobile acceptance remain. |
-| Supabase backend | Partial | Live schema is reachable; migration parity is 32/32, the entitlement table has RLS, schema lint is clean and Advisor access is verified. Two-account acceptance and remaining Advisor warnings remain. |
+| Supabase backend | Partial | Live schema is reachable; migration parity is 33/33, the entitlement table has RLS, schema lint is clean and Advisor access is verified. Two-account acceptance and remaining Advisor warnings remain. |
 | Opportunity ingestion | Partial | Official-source pipeline exists, but worldwide coverage needs source packs, parsers and review. |
 | Recommendation engine | Partial | The engine direction is correct, but it cannot be trusted until published catalogue coverage and golden-profile tests exist. |
 | Country intelligence | Partial | Architecture/UI direction exists; complete country facts are still missing. |

@@ -391,5 +391,6 @@ Verification: lint has no errors; typecheck, 25/25 tests and production build pa
 | CandidRoute executable branding | Codex | Done | Runtime source and package identity no longer render ScholarPath. Historical research docs retain old naming for audit history. |
 | Supabase migration parity | Codex | Done | 32 local/remote versions, zero mismatches. |
 | Supabase advisors | Codex | Verified/partial remediation | Schema lint clean; advisor access works; public execution of internal rule generation revoked. Leaked-password protection and remaining warnings are recorded follow-up. |
-| Verification | Codex | Done locally | Typecheck, 25/25 tests and production build pass. |
-| GitHub push + Vercel deploy | Codex | In progress | Complete after final diff/security audit. |
+| Verification | Codex | Done | Typecheck, lint, 25/25 tests, 0-vulnerability audit and production build pass. Temporary production student: assessment 200, saved report 200, free entitlement 200, live workspace 200, five recommendations, PDF 200 and branded report 200. |
+| GitHub push + Vercel deploy | Codex | Done | Commit `75b2f79` pushed to `main`; Vercel deployment `dpl_4k7j8WH3sm1RATUdGongXR1TdUQb` ready and `candidroute.vercel.app` points to it. |
+| Test-user deletion | Codex | Done | Production test exposed restrictive `audit_events.actor_user_id`; migration `20260813110705` changes it to `ON DELETE SET NULL`. Test user removed; audit history remains anonymised. |

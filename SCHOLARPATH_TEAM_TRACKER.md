@@ -12,14 +12,15 @@
 | Area | Status | Verified truth | Remaining |
 |---|---|---|---|
 | Public accessibility | Done | Vercel Deployment Protection was removed from `candidroute`; anonymous `/api/auth/status` returns HTTP 200 at `https://candidroute.vercel.app`. | Smoke the final deployment after this commit. |
-| Agreed acquisition flow | Code complete | Guest assessment now routes to account creation/sign-in, then claims the same assessment into Supabase before opening `/report`; `/report` requires a session. | Final browser acceptance with a real email-confirmed account. |
+| Agreed acquisition flow | Production API verified | Guest assessment now routes to account creation/sign-in, then claims the same assessment into Supabase before opening `/report`; `/report` requires a session. A temporary confirmed student completed assessment, report persistence, workspace, five recommendations and PDF export in production. | Founder visual acceptance in the browser. |
 | Free report limits | Code complete + DB live | Free access is limited to readiness, top 3 routes, top 3 gaps, 3 country previews, 3 university previews and a limited PDF. Premium modules fail closed behind a server-derived entitlement. | Connect a payment provider/webhook to create Pro entitlements. |
 | Subscription security | Done | `subscription_entitlements` is live with RLS; clients can read only their own row and cannot insert/update plan access. PDF scope is checked server-side. | Payment webhook and billing portal. |
 | CandidRoute branding | Done in executable product | Runtime UI, metadata, auth, errors, report/PDF and package identity use CandidRoute. Historical specification filenames remain for traceability. | Rename repository/database display name separately if desired. |
-| Supabase migration parity | Done | CLI linked to `gbhzekncpqeytknxanzy`; 32 local and remote migration versions match with zero mismatches. | Keep future changes on the CLI migration workflow. |
+| Supabase migration parity | Done | CLI linked to `gbhzekncpqeytknxanzy`; 33 local and remote migration versions match with zero mismatches. | Keep future changes on the CLI migration workflow. |
 | Supabase advisors | Verified | Public schema lint returns no errors. Security/performance advisors now run and findings are recorded; anonymous access to internal rule generation was revoked. | Enable leaked-password protection in Auth settings; address remaining least-privilege/performance warnings in planned batches. |
-| Automated verification | Done | Typecheck, 25/25 tests and production build pass on 13 August 2026. | Authenticated browser acceptance after deployment. |
-| GitHub/Vercel release | In progress | Worktree audited and secrets/logs excluded. | Commit, push, production deploy and public smoke test in this release pass. |
+| Automated verification | Done | Typecheck, lint, 25/25 tests, dependency audit and production build pass on 13 August 2026. Production API journey also passes. | Founder visual acceptance. |
+| GitHub/Vercel release | Done | Commit `75b2f79` is pushed; production deployment `dpl_4k7j8WH3sm1RATUdGongXR1TdUQb` is ready and aliased to `candidroute.vercel.app`. | Add monitoring/alerts. |
+| Account deletion/audit retention | Done | Production journey found an audit FK deletion blocker. The FK now uses `ON DELETE SET NULL`, preserving anonymised audit history while allowing account deletion; the temporary test user was removed. | Add this cleanup case to automated integration tests. |
 
 | Status | Meaning |
 |---|---|
