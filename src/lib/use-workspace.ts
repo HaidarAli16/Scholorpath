@@ -20,7 +20,7 @@ export function useWorkspace(initialWorkspace?: WorkspacePayload, section = "all
 
   const refresh = useCallback(async () => {
     try {
-      const response = await fetch(`/api/workspace?section=${encodeURIComponent(section)}`, { cache: "no-store" });
+      const response = await fetch(`/api/workspace?section=${encodeURIComponent(section)}`);
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         const mode = response.status === 401 ? "unauthenticated" : "unavailable";

@@ -15,7 +15,9 @@ export async function GET(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid live scholarship query.", issues: parsed.error.flatten() }, { status: 400 });
   try {
     const result = await fetchLiveScholarships({ destinationPreference: parsed.data.destination, nationality: parsed.data.nationality }, parsed.data.limit);
-    return NextResponse.json({ mode: result.items.length ? "live-discovery" : "unavailable", ...result });
+    return NextResponse.json({ mode: result.items.length ? "live-discovery" : "unavailable", ...result }, {
+      headers: { "Cache-Control": "public, s-maxage=900, stale-while-revalidate=3600" },
+    });
   } catch {
     return NextResponse.json({ mode: "unavailable", items: [], error: "The discovery feed is temporarily unavailable." }, { status: 503 });
   }

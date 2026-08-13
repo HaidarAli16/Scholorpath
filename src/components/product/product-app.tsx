@@ -68,7 +68,7 @@ const SettingsCenter = dynamic(() => import("@/components/product/frontend-compl
 const StudentProfileCenter = dynamic(() => import("@/components/product/frontend-completion").then((module) => module.StudentProfileCenter));
 const CountryIntelligenceCenter = dynamic(() => import("@/components/directory/education-directory").then((module) => module.CountryIntelligenceCenter));
 const InstitutionDirectoryCenter = dynamic(() => import("@/components/directory/education-directory").then((module) => module.InstitutionDirectoryCenter));
-const IngestionCommandCenter = dynamic(() => import("@/components/admin/ingestion-command-center").then((module) => module.IngestionCommandCenter));
+const AdminControlPlane = dynamic(() => import("@/components/admin/admin-control-plane").then((module) => module.AdminControlPlane));
 const RecommendationsPage = dynamic(() => import("@/components/recommendations/recommendations-page").then((module) => module.RecommendationsPage));
 
 const primaryNav = [
@@ -261,11 +261,23 @@ function SuperAdminApp({ viewerRoles }: { viewerRoles: string[] }) {
         <div className="super-admin-identity"><span>HA</span><div><strong>Platform owner</strong><small>{viewerRoles.join(" · ")}</small></div></div>
         <nav aria-label="Super admin navigation">
           <span>Control centre</span>
-          <Link href="/admin"><LayoutDashboard size={17} /> Overview</Link>
+          <Link href="/admin?tab=overview"><LayoutDashboard size={17} /> Overview</Link>
+          <Link href="/admin?tab=access"><Users size={17} /> Access & plans</Link>
+          <span>Content management</span>
+          <Link href="/admin?tab=programmes"><GraduationCap size={17} /> Programmes</Link>
+          <Link href="/admin?tab=scholarships"><WalletCards size={17} /> Scholarships</Link>
+          <Link href="/admin?tab=countries"><Globe2 size={17} /> Countries</Link>
+          <Link href="/admin?tab=institutions"><Landmark size={17} /> Institutions</Link>
+          <span>Opportunity pipeline</span>
           <Link href="/admin?tab=sources"><Database size={17} /> Official sources</Link>
-          <Link href="/admin?tab=review"><GraduationCap size={17} /> Opportunity review</Link>
+          <Link href="/admin?tab=review"><ClipboardCheck size={17} /> Review queue</Link>
+          <Link href="/admin?tab=publish"><Upload size={17} /> Publishing</Link>
+          <Link href="/admin?tab=health"><AlertCircle size={17} /> Source health</Link>
           <Link href="/admin?tab=runs"><Clock3 size={17} /> Fetch history</Link>
-          <a href="#governance"><ShieldCheck size={17} /> Platform governance</a>
+          <span>Governance</span>
+          <Link href="/admin?tab=support"><CircleHelp size={17} /> Support</Link>
+          <Link href="/admin?tab=audit"><ShieldCheck size={17} /> Audit history</Link>
+          <Link href="/admin?tab=settings"><Settings size={17} /> Settings</Link>
         </nav>
         <div className="super-admin-rail__bottom">
           <Link href="/today"><ArrowRight size={16} /> Open student product</Link>
@@ -274,7 +286,7 @@ function SuperAdminApp({ viewerRoles }: { viewerRoles: string[] }) {
       </aside>
       <main className="super-admin-main">
         <header><div><span className="product-eyebrow">Restricted platform workspace</span><h1>Super Admin</h1></div><span className="super-admin-secure"><ShieldCheck size={15} /> Server-authorized</span></header>
-        <IngestionCommandCenter />
+        <AdminControlPlane />
       </main>
     </div>
   );

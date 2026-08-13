@@ -185,6 +185,14 @@ All implementation steps performed by **Antigravity (Google DeepMind)** across s
 
 ## Cumulative Migration Log
 
+### Session 3 — 13 August 2026 (Sprint 13: Admin control plane)
+
+- Preserved Claude's six performance changes and corrected private-cache and repeated-discovery-fetch risks.
+- Built the unified CandidRoute Super Admin control plane and core CMS.
+- Applied and verified migration `20260813135124_admin_control_plane.sql` (remote parity 36/36; schema lint clean).
+- Verified four live platform settings and one admin assignment using protected server credentials.
+- ESLint, TypeScript, 25 tests and production build pass; unauthenticated admin API access returns 401.
+
 | # | Migration File | Applied | What |
 |---|---|---|---|
 | 012 | `20260807085900_012_global_source_registry.sql` | 7 Aug ✅ | 50+ global sources |

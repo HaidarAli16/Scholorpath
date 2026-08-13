@@ -57,8 +57,8 @@ function countriesFor(input?: { destinationPreference?: string }): ProviderCount
   if (input?.destinationPreference === "Korea") return ["kr"];
   if (input?.destinationPreference === "Singapore") return ["sg"];
   if (input?.destinationPreference === "Malaysia") return ["my"];
-  if (input?.destinationPreference === "World" || input?.destinationPreference === "suggest") return ["usa", "ca", "au", "uk", "de", "jp", "sg"];
-  return ["uk", "de", "nl", "ie", "usa", "ca", "au"];
+  if (input?.destinationPreference === "World" || input?.destinationPreference === "suggest") return ["uk", "usa", "de"];
+  return ["uk", "de", "usa"];
 }
 
 function fitReasons(scholarship: ProviderScholarship, input?: { nationality?: string, fundingNeed?: string }) {

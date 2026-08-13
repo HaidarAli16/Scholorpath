@@ -37,7 +37,7 @@ export async function GET(request: Request) {
   const section = new URL(request.url).searchParams.get("section") || "all";
   const payload = await loadWorkspaceForModule(supabase, user, section);
   if (payload.mode !== "live") return NextResponse.json({ error: "Workspace data could not be loaded." }, { status: 500 });
-  return NextResponse.json(payload);
+  return NextResponse.json(payload, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
 }
 
 export async function POST(request: Request) {

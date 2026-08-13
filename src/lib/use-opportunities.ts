@@ -75,33 +75,47 @@ export function useOpportunities(portfolios?: unknown[], initial?: Opportunities
 
   const refresh = useCallback(async () => {
     try {
-      const [catalogueResponse, recommendationResponse, discoveryResponse] = await Promise.all([
-        fetch("/api/catalogue?limit=50", { cache: "no-store" }),
-        fetch("/api/recommendations/latest", { cache: "no-store" }),
-        fetch("/api/scholarships/live?limit=12", { cache: "no-store" }),
+      const [catalogueResponse, recommendationResponse] = await Promise.all([
+        fetch("/api/catalogue?limit=50"),
+        fetch("/api/recommendations/latest"),
       ]);
       const catalogue = await catalogueResponse.json();
       if (!catalogueResponse.ok) throw new Error(catalogue.error || "Catalogue could not be loaded.");
       const latest = recommendationResponse.ok ? await recommendationResponse.json() : { results: [] };
       setItems(catalogue.items ?? []);
       setRecommendations(latest.results ?? []);
-      const discovery = discoveryResponse.ok ? await discoveryResponse.json() as { items?: LiveScholarshipPreview[] } : { items: [] };
-      const mappedDiscovery = (discovery.items ?? []).map(mapLiveScholarship);
-      setDiscoveryItems(mappedDiscovery);
-      setMode(catalogue.mode === "live" ? "live" : mappedDiscovery.length ? "live-discovery" : "unavailable");
+      setMode(catalogue.mode === "live" ? "live" : "unavailable");
       setError(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Catalogue could not be loaded.");
       setItems([]);
       setRecommendations([]);
-      setDiscoveryItems([]);
       setMode("unavailable");
+    }
+  }, []);
+
+  // Load live discovery items lazily — never blocks initial page render
+  const refreshDiscovery = useCallback(async () => {
+    try {
+      const discoveryResponse = await fetch("/api/scholarships/live?limit=12");
+      const discovery = discoveryResponse.ok ? await discoveryResponse.json() as { items?: LiveScholarshipPreview[] } : { items: [] };
+      const mappedDiscovery = (discovery.items ?? []).map(mapLiveScholarship);
+      setDiscoveryItems(mappedDiscovery);
+      if (mappedDiscovery.length) setMode((current) => current === "live" ? current : "live-discovery");
+    } catch {
+      // Discovery is non-critical — silently fail
     }
   }, []);
 
   useEffect(() => {
     if (!initial) void refresh();
   }, [initial, refresh]);
+
+  // Lazy load discovery after initial render
+  useEffect(() => {
+    const timer = setTimeout(() => void refreshDiscovery(), 100);
+    return () => clearTimeout(timer);
+  }, [refreshDiscovery]);
 
   const opportunities = useMemo<Opportunity[]>(() => {
     const combined = [...mapCatalogueItems(items, recommendations, portfolios as Portfolio[] | undefined), ...discoveryItems];

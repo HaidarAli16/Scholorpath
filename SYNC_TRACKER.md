@@ -2,7 +2,18 @@
 
 **Backend Agent**: Antigravity (Google DeepMind)
 **Frontend Agent**: Codex
-**Last Updated**: 8 August 2026, Codex UI pass
+**Last Updated**: 13 August 2026, Codex admin control-plane pass
+
+## Current shared update — Admin + performance
+
+| Task | Owner | Status | Evidence |
+|---|---|---|---|
+| Lazy worldwide scholarship discovery | Claude + Codex review | ✅ Done | Initial catalogue/recommendation render no longer waits for WorqNow; effect loop removed. |
+| Public/private cache policy | Claude + Codex security review | ✅ Done | Discovery uses CDN SWR; personalized recommendations/workspace explicitly use private no-store. |
+| Admin access and plan controls | Codex | ✅ Code + DB verified | Protected API, transactional final-admin guard, live `platform_settings`, roles and audit. |
+| Core education CMS | Codex | ✅ Code + DB verified | Programmes, scholarships, countries and institutions have validated create/edit/archive workflows. |
+| Admin support, audit and settings | Codex | ✅ Code + DB verified | Correction queue, privileged event history and operational JSON settings are in one control plane. |
+| Signed-in admin visual acceptance | Haidar + Codex | 🟠 Pending | Open `/admin` with the production admin account and check desktop/mobile layout and one reversible edit. |
 
 ---
 

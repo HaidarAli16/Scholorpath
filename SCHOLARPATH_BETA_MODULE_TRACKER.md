@@ -6,7 +6,7 @@ The 14 August beta framing has been removed. Current product truth now lives in 
 
 ## Immediate status
 
-Fresh verification on 13 August 2026: typecheck, lint, all 25 automated tests and the production build pass. Supabase migration parity is 35/35, schema lint is clean, read-path indexes are live, and the database reports 100% table/index cache-hit ratios. Optimized commit `77e1f14` is deployed to production as `dpl_BjF9TGGvUdpRPxpb8xvMkpc5VVSQ`; public smoke tests pass.
+Fresh verification on 13 August 2026: typecheck, lint, all 25 automated tests and the production build pass. Supabase migration parity is 36/36, schema lint is clean, and the protected admin control-plane schema is live. Optimized commit `77e1f14` remains the current production deployment until this control-plane commit is promoted.
 
 | Area | Status | One-line truth |
 |---|---|---|
@@ -17,8 +17,13 @@ Fresh verification on 13 August 2026: typecheck, lint, all 25 automated tests an
 | Country intelligence | Partial | Architecture/UI direction exists; complete country facts are still missing. |
 | Institution directory | Partial | Database/UI direction exists; production university, campus, course and ranking data are still missing. |
 | Deployment | Done | Optimized production deployment is READY and public at `candidroute-taatuftech-1331s-projects.vercel.app`; home, robots, sitemap and core public APIs return 200. |
+| Admin and CMS | Code + DB verified | Admins can manage access/plans, core education content, ingestion, support, audit and settings from one protected control plane; authenticated visual acceptance remains. |
 
 ## Performance engineering pass — 13 August 2026
+
+- Done: live third-party scholarship discovery no longer blocks catalogue/recommendation rendering and its default network fan-out is reduced from fourteen calls to six.
+- Done: public discovery receives safe CDN stale-while-revalidate caching; personalized recommendations and workspace data are explicitly private and excluded from shared caches.
+- Done: Lucide imports are tree-shaken and the discovery effect no longer re-fetches when its own mode changes.
 
 - Done: authenticated pages now load only their own workspace slice instead of ten unrelated student tables on every route.
 - Done: profile bootstrap, entitlement and role checks run concurrently; report, catalogue, recommendations and directories load only where needed.

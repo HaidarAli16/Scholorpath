@@ -1,5 +1,17 @@
 # ScholarPath implementation status
 
+## Sprint 13: CandidRoute admin control plane and CMS
+
+Status: **CODE + DATABASE VERIFIED** — implemented on 13 August 2026
+
+- Replaced the ingestion-only admin screen with one protected control plane for overview, user roles, plan access, programme/scholarship/country/institution CMS, source ingestion, support, audit and operational settings.
+- Added server-authorized mutations with strict validation, origin/rate protection, service-role isolation, required archive reasons and audit events.
+- Added a transactional role-replacement function that prevents self-lockout and removal of the final administrator.
+- Fixed the global nested-header CSS rule that broke the previous admin layout; the new interface is responsive and uses the CandidRoute design language.
+- Applied migration `20260813135124_admin_control_plane.sql`; local/remote parity is 36/36, linked schema lint reports no errors, four settings are live and one administrator assignment is verified.
+- Preserved and hardened Claude's performance pass: discovery loads independently, third-party calls are reduced, public feeds cache safely, private recommendations cannot enter a shared CDN cache, and Lucide imports are optimized.
+- Verification: ESLint passed, TypeScript passed, 25/25 tests passed, production build passed and unauthenticated control-plane access returns HTTP 401.
+
 ## Sprint 12: Stable authenticated boot
 
 Status: **LOCAL ACCEPTANCE PASSED** — implemented and browser-tested on 10 August 2026
