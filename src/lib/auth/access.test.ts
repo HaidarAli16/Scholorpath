@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canAccessAdmin, canAccessOperations, requiresStudentSession, safeInternalPath } from "./access";
+import { canAccessAdmin, canAccessOperations, defaultLandingPath, requiresStudentSession, safeInternalPath } from "./access";
 
 describe("route access", () => {
   it("accepts only internal redirect paths", () => {
@@ -17,6 +17,12 @@ describe("route access", () => {
     expect(canAccessAdmin(["research_reviewer"])).toBe(false);
     expect(canAccessOperations(["support"])).toBe(true);
     expect(canAccessOperations(["student"])).toBe(false);
+  });
+
+  it("lands each account in its correct workspace", () => {
+    expect(defaultLandingPath(["admin", "student"])).toBe("/admin");
+    expect(defaultLandingPath(["research_reviewer"])).toBe("/operations");
+    expect(defaultLandingPath(["student"])).toBe("/today");
   });
 
   it("marks private student workspace routes", () => {

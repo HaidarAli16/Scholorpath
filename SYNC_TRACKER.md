@@ -14,6 +14,7 @@
 | Core education CMS | Codex | ✅ Code + DB verified | Programmes, scholarships, countries and institutions have validated create/edit/archive workflows. |
 | Admin support, audit and settings | Codex | ✅ Code + DB verified | Correction queue, privileged event history and operational JSON settings are in one control plane. |
 | Signed-in admin visual acceptance | Haidar + Codex | 🟠 Pending | Open `/admin` with the production admin account and check desktop/mobile layout and one reversible edit. |
+| Role-aware post-login destination | Codex | ✅ Code verified | Admin → `/admin`, staff → `/operations`, student → `/today`; explicit safe `next` is preserved. |
 
 ---
 

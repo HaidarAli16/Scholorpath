@@ -6,7 +6,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { ArrowRight, CalendarCheck2, Check, FileCheck2, GraduationCap, LoaderCircle, Lock, Mail, ShieldCheck, Sparkles } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { safeInternalPath } from "@/lib/auth/access";
+import { defaultLandingPath, safeInternalPath } from "@/lib/auth/access";
 
 type AuthMode = "sign-in" | "sign-up" | "forgot";
 
@@ -27,10 +27,17 @@ export function AuthPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [storyIndex, setStoryIndex] = useState(0);
-  const redirectTo = safeInternalPath(searchParams.get("next"));
+  const requestedRedirect = safeInternalPath(searchParams.get("next"), "");
+  const redirectTo = requestedRedirect || "/today";
   const isAssessmentContinue = searchParams.get("reason") === "assessment";
   const story = storySlides[storyIndex];
   const StoryIcon = story.icon;
+
+  async function postAuthDestination(supabase: NonNullable<ReturnType<typeof createSupabaseBrowserClient>>) {
+    if (requestedRedirect) return requestedRedirect;
+    const { data } = await supabase.from("user_roles").select("role");
+    return defaultLandingPath((data ?? []).map((row) => row.role));
+  }
 
   useEffect(() => {
     if (isAssessmentContinue) setMode("sign-up");
@@ -47,7 +54,9 @@ export function AuthPage() {
     const supabase = createSupabaseBrowserClient();
     if (!supabase) return;
     setBusy(true);
-    const callback = `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`;
+    const callback = requestedRedirect
+      ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(requestedRedirect)}`
+      : `${window.location.origin}/auth/callback`;
     const { error: authError } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: callback } });
     if (authError) { setBusy(false); setError(authError.message); }
   }
@@ -64,10 +73,10 @@ export function AuthPage() {
     }
     if (mode === "sign-up") {
       const { data, error: authError } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`, data: { first_name: name } } });
-      setBusy(false); if (authError) setError(authError.message); else if (data.session) router.replace(redirectTo); else setMessage("Check your email to confirm the account, then continue your pathway."); return;
+      setBusy(false); if (authError) setError(authError.message); else if (data.session) { router.replace(await postAuthDestination(supabase)); router.refresh(); } else setMessage("Check your email to confirm the account, then continue your pathway."); return;
     }
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
-    setBusy(false); if (authError) setError(authError.message); else { router.replace(redirectTo); router.refresh(); }
+    setBusy(false); if (authError) setError(authError.message); else { router.replace(await postAuthDestination(supabase)); router.refresh(); }
   }
 
   return <main className="auth-shell">

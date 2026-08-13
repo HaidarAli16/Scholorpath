@@ -22,6 +22,12 @@ export function canAccessOperations(roles: readonly string[]) {
   return roles.some((role) => staffRoles.has(role as AppRole));
 }
 
+export function defaultLandingPath(roles: readonly string[]) {
+  if (canAccessAdmin(roles)) return "/admin";
+  if (canAccessOperations(roles)) return "/operations";
+  return "/today";
+}
+
 export function requiresStudentSession(pathname: string) {
   return [
     "/portfolio",
