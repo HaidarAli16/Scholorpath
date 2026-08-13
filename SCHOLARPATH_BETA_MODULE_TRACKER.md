@@ -6,7 +6,7 @@ The 14 August beta framing has been removed. Current product truth now lives in 
 
 ## Immediate status
 
-Fresh verification on 13 August 2026: typecheck, lint, all 25 automated tests and the production build pass. Supabase migration parity is 36/36, schema lint is clean, and the protected admin control-plane schema is live. Optimized commit `77e1f14` remains the current production deployment until this control-plane commit is promoted.
+Fresh verification on 13 August 2026: typecheck, lint, all 25 automated tests and the production build pass. Supabase migration parity is 36/36, schema lint is clean, and the protected admin control-plane schema is live. Commit `6da5126` is deployed as `dpl_Fqe6GYZCXzczYseCeBxNJGJ7QiXA` and aliased to `candidroute.vercel.app`.
 
 | Area | Status | One-line truth |
 |---|---|---|

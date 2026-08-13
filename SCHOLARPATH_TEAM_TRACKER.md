@@ -19,7 +19,7 @@
 | Supabase migration parity | Done | CLI linked to `gbhzekncpqeytknxanzy`; 36 local and remote migration versions match with zero mismatches. | Keep future changes on the CLI migration workflow. |
 | Supabase advisors | Verified | Public schema lint returns no errors. Security/performance advisors now run and findings are recorded; anonymous access to internal rule generation was revoked. | Enable leaked-password protection in Auth settings; address remaining least-privilege/performance warnings in planned batches. |
 | Automated verification | Done | Typecheck, lint, 25/25 tests, dependency audit and production build pass on 13 August 2026. Production API journey also passes. | Founder visual acceptance. |
-| GitHub/Vercel release | Done | Commit `75b2f79` is pushed; production deployment `dpl_4k7j8WH3sm1RATUdGongXR1TdUQb` is ready and aliased to `candidroute.vercel.app`. | Add monitoring/alerts. |
+| GitHub/Vercel release | Done | Admin/CMS commit `6da5126` is pushed; production deployment `dpl_Fqe6GYZCXzczYseCeBxNJGJ7QiXA` is READY in `sin1` and aliased to `candidroute.vercel.app`. Public home/catalogue/discovery pass and the anonymous admin API returns 401. | Add monitoring/alerts and complete signed-in founder acceptance. |
 | Account deletion/audit retention | Done | Production journey found an audit FK deletion blocker. The FK now uses `ON DELETE SET NULL`, preserving anonymised audit history while allowing account deletion; the temporary test user was removed. | Add this cleanup case to automated integration tests. |
 
 | Status | Meaning |

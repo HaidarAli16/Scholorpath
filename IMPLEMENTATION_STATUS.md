@@ -11,6 +11,7 @@ Status: **CODE + DATABASE VERIFIED** — implemented on 13 August 2026
 - Applied migration `20260813135124_admin_control_plane.sql`; local/remote parity is 36/36, linked schema lint reports no errors, four settings are live and one administrator assignment is verified.
 - Preserved and hardened Claude's performance pass: discovery loads independently, third-party calls are reduced, public feeds cache safely, private recommendations cannot enter a shared CDN cache, and Lucide imports are optimized.
 - Verification: ESLint passed, TypeScript passed, 25/25 tests passed, production build passed and unauthenticated control-plane access returns HTTP 401.
+- Released: commit `6da5126`, deployment `dpl_Fqe6GYZCXzczYseCeBxNJGJ7QiXA`, stable alias `https://candidroute.vercel.app`, Singapore function region.
 
 ## Sprint 12: Stable authenticated boot
 
