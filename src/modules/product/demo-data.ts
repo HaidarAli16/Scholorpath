@@ -10,6 +10,7 @@ export type Opportunity = {
   deadlineNote: string;
   value: string;
   match: "Confirmed match" | "Conditional match" | "Needs verification";
+  matchScore?: number;
   freshness: "Verified" | "Review due";
   reasons: string[];
   condition: string;
@@ -30,6 +31,7 @@ export const opportunities: Opportunity[] = [
     deadlineNote: "March 2027 intake · confirm availability with Leeds",
     value: "£15,000 published tuition",
     match: "Conditional match",
+    matchScore: 78,
     freshness: "Verified",
     reasons: ["Computing and statistics routes can align", "Online delivery lowers relocation dependency"],
     condition: "The application deadline and final academic equivalence remain open checks.",
@@ -49,6 +51,7 @@ export const opportunities: Opportunity[] = [
     deadlineNote: "Europe/Berlin · official programme page",
     value: "No tuition · semester fee applies",
     match: "Needs verification",
+    matchScore: 61,
     freshness: "Verified",
     reasons: ["Strong subject alignment", "Lower-tuition route supports your funding constraint"],
     condition: "Exact CS, mathematics and AI prerequisite coverage plus accepted C1 English evidence must be checked.",
@@ -68,6 +71,7 @@ export const opportunities: Opportunity[] = [
     deadlineNote: "11:00 UTC · official application timeline",
     value: "Published full-award route",
     match: "Conditional match",
+    matchScore: 84,
     freshness: "Verified",
     reasons: ["Pakistan, India and Bangladesh have country routes", "The cycle is open from 4 August 2026"],
     condition: "All country-page eligibility, leadership evidence and eligible course choices still require review.",
@@ -85,6 +89,7 @@ export const opportunities: Opportunity[] = [
     deadlineNote: "Only participating institutions · verify the university deadline",
     value: "€5,000 first-year award",
     match: "Conditional match",
+    matchScore: 72,
     freshness: "Verified",
     reasons: ["Non-EEA applicants are in scope", "Bachelor’s and master’s routes can participate"],
     condition: "Your chosen institution and programme must participate in the 2026–27 cycle.",

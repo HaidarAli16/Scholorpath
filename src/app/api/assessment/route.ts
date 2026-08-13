@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   const liveDiscovery = await fetchLiveScholarships(parsed.data, 6).catch(() => null);
   report.liveScholarships = liveDiscovery?.items ?? [];
   report.liveDataNotice = report.liveScholarships.length
-    ? "Live discovery results are third-party leads, not verified eligibility. ScholarPath will only promote them after an official source, cycle and deadline are attached."
+    ? "Live discovery results are third-party leads, not verified eligibility. CandidRoute will only promote them after an official source, cycle and deadline are attached."
     : "The live discovery feed was unavailable. Your pathway report was generated from validated profile data and can be refreshed later.";
   if (isSupabaseConfigured) {
     const supabase = await createSupabaseServerClient();
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
         p_request_hash: requestHash,
         p_idempotency_key: idempotencyKey,
       });
-      if (error) return NextResponse.json({ error: "Your assessment could not be saved atomically.", detail: error.message }, { status: 500 });
+      if (error) return NextResponse.json({ error: "Your assessment could not be saved atomically." }, { status: 500 });
       const assessmentId = (submission as { assessment_id?: string } | null)?.assessment_id ?? null;
       let intelligenceRunId: string | null = null;
       if (assessmentId) {

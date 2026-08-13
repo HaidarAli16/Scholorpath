@@ -11,7 +11,7 @@ const querySchema = z.object({
 });
 
 export async function GET(request: Request) {
-  if (!isSupabaseConfigured) return NextResponse.json({ mode: "demo", items: [] });
+  if (!isSupabaseConfigured) return NextResponse.json({ error: "Catalogue database is not configured." }, { status: 503 });
   const url = new URL(request.url);
   const parsed = querySchema.safeParse(Object.fromEntries(url.searchParams));
   if (!parsed.success) return NextResponse.json({ error: "Invalid catalogue query.", issues: parsed.error.flatten() }, { status: 400 });
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
     type === "programme" ? Promise.resolve({ data: [], error: null }) : scholarshipQuery(),
   ]);
   const error = programmes.error || scholarships.error;
-  if (error) return NextResponse.json({ error: "Catalogue could not be loaded.", detail: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Catalogue could not be loaded." }, { status: 500 });
   const items = [
     ...(programmes.data ?? []).map((item) => ({ ...item, entityType: "programme", provider: item.institution_name })),
     ...(scholarships.data ?? []).map((item) => ({ ...item, entityType: "scholarship", provider: item.provider_name })),

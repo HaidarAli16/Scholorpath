@@ -32,6 +32,6 @@ export async function POST(request: Request) {
   }
 
   const { data, error } = await supabase.rpc("register_document", { p_storage_path: parsed.data.path, p_name: parsed.data.name, p_category: parsed.data.category, p_mime_type: parsed.data.mimeType, p_size_bytes: parsed.data.sizeBytes });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Document upload could not be completed." }, { status: 500 });
   return NextResponse.json({ ok: true, document: data });
 }

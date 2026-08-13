@@ -21,7 +21,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   const { data: objects } = await admin.storage.from("confidential-references").list(recommender.id, { search: objectName, limit: 2 });
   if (!objects?.some((item) => item.name === objectName)) return NextResponse.json({ error: "Uploaded reference could not be verified." }, { status: 409 });
   const { data: completed, error } = await admin.from("recommenders").update({ status: "submitted", submitted_at: new Date().toISOString(), confidential_storage_path: parsed.data.path, access_token_hash: null }).eq("id", recommender.id).eq("status", recommender.status).eq("access_token_hash", hash).select("id").maybeSingle();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Reference submission could not be completed." }, { status: 500 });
   if (!completed) return NextResponse.json({ error: "This invitation was already completed." }, { status: 409 });
   return NextResponse.json({ ok: true });
 }

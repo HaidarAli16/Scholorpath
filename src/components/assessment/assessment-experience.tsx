@@ -7,24 +7,25 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   CircleAlert,
   Clock3,
-  FileCheck2,
   Flag,
-  GraduationCap,
   LayoutDashboard,
   Lightbulb,
   ListChecks,
   LockKeyhole,
   Map,
+  Pause,
+  Play,
   RotateCcw,
   Search,
   ShieldCheck,
   Sparkles,
-  Target,
   UserRound,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   clearAssessmentDraft,
   loadAssessmentDraft,
@@ -32,6 +33,7 @@ import {
 } from "@/lib/draft-store";
 import { saveAssessmentHandoff } from "@/lib/assessment-handoff";
 import { getAssessmentStepIssue } from "@/modules/assessment/step-validation";
+import { ContextHelp } from "@/components/ui/contextual-help";
 import {
   fieldOptions,
   intakeOptions,
@@ -46,13 +48,21 @@ import {
 type Mode = "welcome" | "assessment" | "analyzing" | "workspace";
 type Draft = Partial<AssessmentInput>;
 
-const sections = [
-  { label: "About you", icon: UserRound },
-  { label: "Academic record", icon: GraduationCap },
-  { label: "Goal & funding", icon: Target },
-  { label: "Evidence", icon: FileCheck2 },
-  { label: "Review", icon: Sparkles },
+const budgetCurrencies: AssessmentInput["budgetCurrency"][] = [
+  "PKR", "INR", "BDT", "USD", "EUR", "GBP", "CAD", "AUD", "JPY", "CNY",
+  "KRW", "SGD", "MYR", "TRY", "HUF", "NZD", "SAR", "SEK", "CHF", "NOK",
+];
+
+const destinationGroups = [
+  { label: "Smart start", options: [["suggest", "Let CandidRoute suggest", "Use your complete profile first"], ["World", "Keep the world open", "Compare the best eligible routes"]] },
+  { label: "Europe", options: [["UK", "United Kingdom", "Scholarships and taught master's routes"], ["Germany", "Germany", "Public universities and funded routes"], ["Europe", "Wider Europe", "Include Erasmus and consortium routes"]] },
+  { label: "Americas", options: [["US", "United States", "Funding-first university routes"], ["Canada", "Canada", "Study and post-study pathways"]] },
+  { label: "Asia-Pacific", options: [["Australia", "Australia", "Scholarships and work-right context"], ["Japan", "Japan", "MEXT and university opportunities"], ["Korea", "South Korea", "GKS and university routes"], ["Singapore", "Singapore", "Research-focused pathways"], ["Malaysia", "Malaysia", "Regional value and funding routes"]] },
 ] as const;
+
+const countryCurrency: Record<string, AssessmentInput["budgetCurrency"]> = {
+  Pakistan: "PKR", India: "INR", Bangladesh: "BDT", "United States": "USD", Canada: "CAD", "United Kingdom": "GBP", Germany: "EUR", France: "EUR", Italy: "EUR", Spain: "EUR", Japan: "JPY", China: "CNY", "South Korea": "KRW", Singapore: "SGD", Malaysia: "MYR", Turkey: "TRY", Hungary: "HUF", "New Zealand": "NZD", "Saudi Arabia": "SAR", Sweden: "SEK", Switzerland: "CHF", Norway: "NOK", Australia: "AUD",
+};
 
 const pages = [
   { section: 0, label: "Your name" },
@@ -114,9 +124,9 @@ const initialDraft: Draft = {
 
 function Brand() {
   return (
-    <a className="brand" href="#top" aria-label="ScholarPath home">
+    <a className="brand" href="#top" aria-label="CandidRoute home">
       <span className="brand__mark"><Sparkles size={17} /></span>
-      <span>ScholarPath</span>
+      <span>CandidRoute</span>
       <span className="brand__beta">Preview</span>
     </a>
   );
@@ -223,10 +233,10 @@ function Welcome({ onStart }: { onStart: () => void }) {
       </nav>
       <section className="hero">
         <div className="hero__copy">
-          <span className="eyebrow"><Sparkles size={14} /> Built for South Asian applicants</span>
+          <span className="eyebrow"><Sparkles size={14} /> Built for global applicants</span>
           <h1>A clearer route from <span>“Can I apply?”</span> to “What do I do next?”</h1>
           <p>
-            ScholarPath turns your academic record, funding reality and evidence into
+            CandidRoute turns your academic record, funding reality and evidence into
             transparent research lanes and an application execution plan.
           </p>
           <div className="hero__actions">
@@ -239,7 +249,7 @@ function Welcome({ onStart }: { onStart: () => void }) {
             <div><strong>No AI API required</strong><span>Rules and suggestions remain explainable</span></div>
           </div>
         </div>
-        <div className="hero__visual" aria-label="ScholarPath workspace preview">
+        <div className="hero__visual" aria-label="CandidRoute workspace preview">
           <div className="preview-window">
             <div className="preview-window__bar">
               <span><i /><i /><i /></span>
@@ -286,10 +296,19 @@ function StepHeading({
   title: string;
   description: string;
 }) {
+  const guidance = eyebrow === "About you"
+    ? { title: "Why CandidRoute asks this", summary: "Citizenship and residence select the correct qualification, funding and immigration rule branches.", details: ["Citizenship and residence are stored separately.", "Changing either will recalculate dependent pathway checks."] }
+    : eyebrow === "Academic record"
+      ? { title: "How academic answers are used", summary: "Your qualification and result are normalized before they are compared with published entry rules.", details: ["The original grading scale is preserved.", "Institution-specific equivalence remains an open check until sourced."] }
+      : eyebrow === "Goal and funding"
+        ? { title: "How preferences affect results", summary: "Goals, destination and budget prioritise feasible routes; they do not silently remove alternatives.", details: ["Hard eligibility rules run before preference ranking.", "Conditional awards never count as confirmed funding."] }
+        : eyebrow === "Evidence and readiness"
+          ? { title: "Why evidence changes the pathway", summary: "Declared evidence controls which claims are ready and which become visible tasks.", details: ["Missing evidence is a planning input, not a penalty.", "Readiness measures preparation rather than acceptance probability."] }
+          : null;
   return (
     <header className="step-heading">
       <span className="eyebrow">{eyebrow}</span>
-      <h1>{title}</h1>
+      <div className="step-heading__title"><h1>{title}</h1>{guidance && <ContextHelp {...guidance} />}</div>
       <p>{description}</p>
     </header>
   );
@@ -303,7 +322,7 @@ function buildCoachInsight(page: number, draft: Draft) {
       : `We’ll keep ${draft.nationality} citizenship and ${draft.currentCountry} residence rules separate.`;
   }
   if (page === 5 && draft.gradeValue && draft.gradeMaximum) return `Result preserved as ${draft.gradeValue}/${draft.gradeMaximum}; the planning signal is ${Math.round((draft.gradeValue / draft.gradeMaximum) * 100)}%.`;
-  if (page === 8 && draft.destinationPreference) return draft.destinationPreference === "suggest" ? "Good choice—ScholarPath can compare routes before prioritizing a country." : `${draft.destinationPreference} will be prioritized while alternatives remain visible.`;
+  if (page === 8 && draft.destinationPreference) return draft.destinationPreference === "suggest" ? "Good choice—CandidRoute can compare routes before prioritizing a country." : `${draft.destinationPreference} will be prioritized while alternatives remain visible.`;
   if (page === 9 && draft.fundingNeed) return draft.fundingNeed === "full" ? "We’ll prioritize full-award and lower-cost routes, separate from admission fit." : "Awards and personal-contribution routes will be compared separately.";
   if (page === 11 && draft.englishStatus) return `English readiness is marked ${draft.englishStatus.replaceAll("_", " ")}; the action plan will adjust its timing.`;
   if (page === 13 && draft.researchEvidence) {
@@ -322,6 +341,63 @@ function CoachLine({ page, draft }: { page: number; draft: Draft }) {
   );
 }
 
+function CountryPicker({ value, options, onChange }: { value: string; options: readonly string[]; onChange: (country: string) => void }) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const listId = useId();
+  const matches = options.filter((country) => country.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 10);
+  useEffect(() => {
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) { setOpen(false); setQuery(""); }
+    };
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    return () => document.removeEventListener("pointerdown", closeOnOutsideClick);
+  }, []);
+  const openPicker = () => { setOpen(true); setActiveIndex(Math.max(0, matches.indexOf(value))); };
+  const selectCountry = (country: string) => { onChange(country); setQuery(""); setOpen(false); };
+  const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "ArrowDown") { event.preventDefault(); if (!open) openPicker(); else setActiveIndex((index) => Math.min(index + 1, matches.length - 1)); }
+    if (event.key === "ArrowUp") { event.preventDefault(); setActiveIndex((index) => Math.max(index - 1, 0)); }
+    if (event.key === "Enter" && open && matches[activeIndex]) { event.preventDefault(); selectCountry(matches[activeIndex]); }
+    if (event.key === "Escape") { event.preventDefault(); setOpen(false); setQuery(""); }
+  };
+  return (
+    <div className={`country-picker ${open ? "is-open" : ""}`} ref={rootRef}>
+      <div className="search-field country-picker__control"><Search size={17} /><input role="combobox" aria-expanded={open} aria-controls={listId} aria-autocomplete="list" aria-activedescendant={open && matches[activeIndex] ? `${listId}-${activeIndex}` : undefined} value={open ? query : value} onFocus={openPicker} onClick={openPicker} onChange={(event) => { setQuery(event.target.value); setOpen(true); setActiveIndex(0); }} onKeyDown={onKeyDown} placeholder="Choose your country" autoComplete="off" /><button type="button" aria-label={open ? "Close country list" : "Open country list"} aria-expanded={open} onClick={() => { if (open) { setOpen(false); setQuery(""); } else openPicker(); }}><ChevronDown size={17} /></button></div>
+      {open && <div id={listId} className="country-picker__results" role="listbox" aria-label="Countries">
+        {matches.map((country, index) => <button id={`${listId}-${index}`} key={country} type="button" role="option" aria-selected={value === country} className={`${value === country ? "active" : ""} ${activeIndex === index ? "is-highlighted" : ""}`} onMouseEnter={() => setActiveIndex(index)} onMouseDown={(event) => event.preventDefault()} onClick={() => selectCountry(country)}><span>{country}</span>{value === country && <i><Check size={13} /></i>}</button>)}
+        {!matches.length && <p className="country-picker__empty">No country found. Try another spelling.</p>}
+      </div>}
+    </div>
+  );
+}
+
+function InstitutionTypeahead({ value, country, onChange }: { value: string; country: string; onChange: (value: string) => void }) {
+  const [results, setResults] = useState<Array<{ id: string; official_name: string; short_name?: string | null; country_code?: string | null }>>([]);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (value.trim().length < 2) { setResults([]); return; }
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        const params = new URLSearchParams({ q: value.trim(), limit: "8" });
+        if (country) params.set("country", country);
+        const response = await fetch(`/api/institutions/search?${params}`, { signal: controller.signal });
+        if (!response.ok) return;
+        const payload = await response.json() as { results?: typeof results };
+        setResults(payload.results ?? []);
+        setOpen(true);
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") setResults([]);
+      }
+    }, 220);
+    return () => { controller.abort(); window.clearTimeout(timer); };
+  }, [country, value]);
+  return <div className="institution-typeahead"><div className="search-field"><Search size={17} /><input value={value} onFocus={() => setOpen(true)} onChange={(event) => onChange(event.target.value)} placeholder="Search your university" autoComplete="organization" /></div>{open && results.length > 0 && <div className="institution-typeahead__results" role="listbox">{results.map((item) => <button key={item.id} type="button" role="option" aria-selected={value === item.official_name} onMouseDown={(event) => event.preventDefault()} onClick={() => { onChange(item.official_name); setOpen(false); }}><strong>{item.official_name}</strong><small>{item.short_name || "Verified institution"}{item.country_code ? ` · ${item.country_code}` : ""}</small></button>)}</div>}</div>;
+}
+
 function StepContent({
   step,
   draft,
@@ -332,7 +408,7 @@ function StepContent({
   update: (patch: Draft) => void;
 }) {
   const origin = draft.nationality ?? "Pakistan";
-  const qualifications = qualificationOptions[origin];
+  const qualifications = qualificationOptions[origin] ?? qualificationOptions._default;
 
   if (step >= 0 && step <= 2) {
     return (
@@ -354,24 +430,7 @@ function StepContent({
           </Field>}
           {step === 1 &&
           <Field label="Your citizenship">
-            <div className="choice-grid choice-grid--three">
-              {originOptions.map((country) => (
-                <Choice
-                  key={country}
-                  title={country}
-                  compact
-                  selected={origin === country}
-                  onClick={() =>
-                    update({
-                      nationality: country,
-                      currentCountry: country,
-                      qualification: undefined,
-                      budgetCurrency: country === "Pakistan" ? "PKR" : country === "India" ? "INR" : "BDT",
-                    })
-                  }
-                />
-              ))}
-            </div>
+            <CountryPicker value={origin} options={originOptions} onChange={(country) => update({ nationality: country, currentCountry: country, qualification: undefined, budgetCurrency: countryCurrency[country] ?? "USD" })} />
           </Field>}
           {step === 2 && <>
           <Field label="Where do you currently live?">
@@ -423,12 +482,8 @@ function StepContent({
           </Field>
           </>}
           {step === 4 && <>
-          <Field label="Institution or awarding university" hint="Start typing the official name. A registry-backed selector will replace this launch dataset.">
-            <div className="search-field"><Search size={17} /><input
-              value={draft.institution ?? ""}
-              onChange={(event) => update({ institution: event.target.value })}
-              placeholder="e.g. University of the Punjab"
-            /></div>
+          <Field label="Institution or awarding university" hint="Search the directory, or keep typing if your institution is not listed yet.">
+            <InstitutionTypeahead value={draft.institution ?? ""} country={origin} onChange={(institution) => update({ institution })} />
           </Field>
           <Field label="Field family">
             <div className="select-wrap">
@@ -502,7 +557,7 @@ function StepContent({
         <StepHeading
           eyebrow="Goal and funding"
           title={step === 7 ? "Which intake are you targeting?" : step === 8 ? "Where would you like to study?" : step === 9 ? "How dependent are you on funding?" : "What can you currently contribute?"}
-          description={step === 7 ? "This anchors deadlines and preparation time." : step === 8 ? "Choose a preference or let ScholarPath suggest suitable routes." : step === 9 ? "We keep funding eligibility separate from admission fit." : "An honest range helps us filter out financially unrealistic routes."}
+          description={step === 7 ? "This anchors deadlines and preparation time." : step === 8 ? "Choose a preference or let CandidRoute suggest suitable routes." : step === 9 ? "We keep funding eligibility separate from admission fit." : "An honest range helps us filter out financially unrealistic routes."}
         />
         <div className="form-stack">
           {step === 7 &&
@@ -513,16 +568,7 @@ function StepContent({
           </Field>}
           {step === 8 &&
           <Field label="Destination preference">
-            <div className="choice-grid choice-grid--two">
-              {[
-                ["suggest", "Suggest suitable routes", "Use my complete profile first"],
-                ["UK", "United Kingdom first", "Keep alternatives visible"],
-                ["Germany", "Germany first", "Keep alternatives visible"],
-                ["Europe", "Wider Europe", "Include consortium routes"],
-              ].map(([value, title, description]) => (
-                <Choice key={value} title={title} description={description} selected={draft.destinationPreference === value} onClick={() => update({ destinationPreference: value as AssessmentInput["destinationPreference"] })} />
-              ))}
-            </div>
+            <div className="destination-picker">{destinationGroups.map((group) => <section key={group.label}><span>{group.label}</span><div className="choice-grid choice-grid--two">{group.options.map(([value, title, description]) => <Choice key={value} title={title} description={description} selected={draft.destinationPreference === value} onClick={() => update({ destinationPreference: value })} />)}</div></section>)}</div>
           </Field>}
           {step === 9 &&
           <Field label="How dependent are you on funding?">
@@ -541,7 +587,7 @@ function StepContent({
           <Field label="Maximum contribution currently available" hint="We keep the original currency. Exchange-rate assumptions will be timestamped later.">
             <div className="money-field">
               <select value={draft.budgetCurrency ?? "PKR"} onChange={(event) => update({ budgetCurrency: event.target.value as AssessmentInput["budgetCurrency"] })}>
-                <option>PKR</option><option>INR</option><option>BDT</option><option>USD</option>
+                {budgetCurrencies.map((currency) => <option key={currency}>{currency}</option>)}
               </select>
               <input type="number" min="0" step="10000" value={draft.availableBudget ?? 0} onChange={(event) => update({ availableBudget: Number(event.target.value) })} />
             </div>
@@ -851,6 +897,162 @@ function Workspace({
   );
 }
 
+const adSlides = [
+  {
+    tag: "Verified Catalogue",
+    title: "100% Official Sources, <span>Zero Unverified Blogs</span>",
+    description: "Every scholarship deadline, grade requirement, and coverage rule is traced directly to official university & government portals.",
+    badge: "Official Data Pipeline",
+    proofIcon: ShieldCheck,
+    proofTitle: "Direct Source Integrity",
+    proofSubtitle: "Updated continuously with audit timestamps",
+  },
+  {
+    tag: "Worldwide coverage",
+    title: "Designed for <span>Pakistan, India & Bangladesh</span>",
+    description: "Built-in equivalency signals for HEC/CBSE/State boards, proof of funds guidelines, and local currency cost calculators.",
+    badge: "Regional Intelligence",
+    proofIcon: Flag,
+    proofTitle: "HEC, CBSE & Board Support",
+    proofSubtitle: "Original grading scales preserved without distortion",
+  },
+  {
+    tag: "No Agency Bias",
+    title: "Zero Consultant Fees, <span>Save $2,000+</span>",
+    description: "Independent, evidence-backed matching. We never push low-quality partner colleges or take secret agency commissions.",
+    badge: "Unbiased Matching",
+    proofIcon: Sparkles,
+    proofTitle: "100% Student-First",
+    proofSubtitle: "Your evidence dictates the ranking, not agent payouts",
+  },
+  {
+    tag: "Explainable Engine",
+    title: "Clear Match Rules: <span>Confirmed or Conditional</span>",
+    description: "Never guess why a program surfaced. See exact confirmed facts, conditional requirements, and missing evidence items.",
+    badge: "No Fake AI Scores",
+    proofIcon: BookOpenCheck,
+    proofTitle: "Auditable Decisions",
+    proofSubtitle: "Every recommendation provides a clear reason & next action",
+  },
+  {
+    tag: "Execution System",
+    title: "Turn Pathways into <span>Weekly Executable Tasks</span>",
+    description: "Auto-generate prioritized task lists, document vaults, writing guides, and funding scenario calculators for your target intake.",
+    badge: "Complete Workspace",
+    proofIcon: ListChecks,
+    proofTitle: "Step-by-Step Progress",
+    proofSubtitle: "Deadlines, proof requirements, and writing guides included",
+  },
+];
+
+function AdCarousel({ activeSection }: { activeSection: number }) {
+  const [slideIndex, setSlideIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  useEffect(() => {
+    setSlideIndex(activeSection % adSlides.length);
+  }, [activeSection]);
+
+  useEffect(() => {
+    if (isPaused) return;
+    const timer = setInterval(() => {
+      setSlideIndex((prev) => (prev + 1) % adSlides.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [isPaused]);
+
+  const slide = adSlides[slideIndex];
+  const ProofIcon = slide.proofIcon;
+
+  return (
+    <aside
+      className="ad-carousel-card"
+      aria-label="CandidRoute value carousel"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+    >
+      <div className="ad-carousel-header">
+        <Brand />
+        <div className="ad-carousel-pills" aria-label="Carousel slides">
+          {adSlides.map((_, index) => (
+            <button
+              key={index}
+              type="button"
+              className="ad-carousel-pill"
+              onClick={() => setSlideIndex(index)}
+              aria-label={`Go to slide ${index + 1}`}
+            >
+              <div
+                className="ad-carousel-pill__fill"
+                style={{ width: slideIndex === index ? "100%" : "0%" }}
+              />
+            </button>
+          ))}
+        </div>
+        <span className="ad-carousel-badge">{slide.badge}</span>
+      </div>
+
+      <div className="ad-carousel-content" key={slideIndex}>
+        <span className="ad-carousel-tag">
+          <Sparkles size={14} /> {slide.tag}
+        </span>
+        <h2
+          className="ad-carousel-title"
+          dangerouslySetInnerHTML={{ __html: slide.title }}
+        />
+        <p className="ad-carousel-description">{slide.description}</p>
+
+        <div className="ad-carousel-proof">
+          <div className="ad-carousel-proof__icon">
+            <ProofIcon size={20} />
+          </div>
+          <div className="ad-carousel-proof__text">
+            <strong>{slide.proofTitle}</strong>
+            <span>{slide.proofSubtitle}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="ad-carousel-footer">
+        <div className="ad-carousel-dots">
+          {adSlides.map((_, index) => (
+            <button
+              key={index}
+              type="button"
+              className={`ad-carousel-dot ${slideIndex === index ? "active" : ""}`}
+              onClick={() => setSlideIndex(index)}
+              aria-label={`Slide ${index + 1}`}
+            />
+          ))}
+        </div>
+        <div className="ad-carousel-nav">
+          <button
+            type="button"
+            onClick={() => setIsPaused(!isPaused)}
+            title={isPaused ? "Play slide rotation" : "Pause slide rotation"}
+          >
+            {isPaused ? <Play size={13} /> : <Pause size={13} />}
+          </button>
+          <button
+            type="button"
+            onClick={() => setSlideIndex((slideIndex - 1 + adSlides.length) % adSlides.length)}
+            title="Previous slide"
+          >
+            <ChevronLeft size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setSlideIndex((slideIndex + 1) % adSlides.length)}
+            title="Next slide"
+          >
+            <ChevronRight size={15} />
+          </button>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
 export function AssessmentExperience() {
   const [mode, setMode] = useState<Mode>("welcome");
   const [step, setStep] = useState(0);
@@ -863,6 +1065,22 @@ export function AssessmentExperience() {
   useEffect(() => {
     const stored = loadAssessmentDraft();
     if (stored) setDraft((current) => ({ ...current, ...stored }));
+  }, []);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("retake") !== "1") return;
+    let active = true;
+    fetch("/api/workspace", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload: { authenticated?: boolean; data?: { assessment?: { answers?: Draft | null } | null } | null } | null) => {
+        const answers = payload?.authenticated ? payload.data?.assessment?.answers : null;
+        if (!active || !answers) return;
+        setDraft((current) => ({ ...current, ...answers }));
+        setStep(0);
+        setMode("assessment");
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -901,10 +1119,11 @@ export function AssessmentExperience() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? "Some answers need attention.");
       const completedReport = result as AssessmentReport;
-      saveAssessmentHandoff(draft, completedReport);
+      const idempotencyKey = crypto.randomUUID();
+      saveAssessmentHandoff(draft, completedReport, { requiresClaim: true, idempotencyKey });
       setReport(completedReport);
       clearAssessmentDraft();
-      window.location.assign("/report");
+      window.location.assign("/auth?next=%2Freport&reason=assessment");
     } catch (submissionError) {
       setMode("assessment");
       setError(submissionError instanceof Error ? submissionError.message : "We could not build your pathway.");
@@ -915,7 +1134,6 @@ export function AssessmentExperience() {
   if (mode === "analyzing") return <AnalysisView stage={analysisStage} />;
   if (mode === "workspace" && report) return <Workspace report={report} name={draft.firstName ?? "Student"} onRestart={() => { setReport(null); setStep(0); setMode("assessment"); }} />;
 
-  const progress = ((step + 1) / pages.length) * 100;
   const activeSection = pages[step].section;
   const move = (next: number, nextDirection: "forward" | "back") => {
     setDirection(nextDirection);
@@ -933,28 +1151,37 @@ export function AssessmentExperience() {
 
   return (
     <main className="assessment-shell">
-      <header className="assessment-top">
-        <Brand />
-        <div className="assessment-top__progress" aria-label={`Question ${step + 1} of ${pages.length}`}>
-          <i><b style={{ width: `${progress}%` }} /></i>
-          <strong>{pages[step].label}</strong>
-        </div>
-        <span><Check size={13} /> Draft saved on this device</span>
-      </header>
-      <div className="mobile-progress"><span>Question {step + 1} of {pages.length}</span><strong>{pages[step].label}</strong><i><b style={{ width: `${progress}%` }} /></i></div>
-      <div className="assessment-layout">
-        <nav className="section-tabs" aria-label="Profile sections">
-          {sections.map((item, index) => (
-            <span key={item.label} className={index === activeSection ? "active" : index < activeSection ? "complete" : ""}>
-              {index < activeSection ? <Check size={13} /> : index + 1} {item.label}
-            </span>
-          ))}
-        </nav>
-        <section className="form-panel">
-          <div className={`form-content form-content--${direction}`} key={step}>
-            <StepContent step={step} draft={draft} update={update} />
-            <CoachLine page={step} draft={draft} />
+      <div className="split-onboarding-layout">
+        <AdCarousel activeSection={activeSection} />
+
+        <section className="split-onboarding-inputs">
+          <header className="onboarding-input-header">
+            <span className="onboarding-step-label">Step {step + 1} of {pages.length} · {pages[step].label}</span>
+            <span><Check size={13} /> Saved locally</span>
+          </header>
+          <div>
+            <div className="higgsfield-progress" aria-label={`Step ${step + 1} of ${pages.length}`}>
+              {pages.map((p, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  className="higgsfield-progress__pill"
+                  onClick={() => index <= step && move(index, index < step ? "back" : "forward")}
+                  title={p.label}
+                >
+                  <div className="higgsfield-progress__fill" style={{ width: index <= step ? "100%" : "0%" }} />
+                </button>
+              ))}
+            </div>
+
+
+
+            <div className={`form-content form-content--${direction}`} key={step}>
+              <StepContent step={step} draft={draft} update={update} />
+              <CoachLine page={step} draft={draft} />
+            </div>
           </div>
+
           <footer className="form-footer">
             <Button variant="quiet" disabled={step === 0} onClick={() => move(step - 1, "back")}><ArrowLeft size={16} /> Back</Button>
             <div>{error && <span className="form-error" role="alert" aria-live="polite">{error}</span>}<Button aria-disabled={Boolean(stepIssue)} onClick={continueAssessment}>{step === pages.length - 1 ? "Build my pathway" : "Continue"} <ArrowRight size={16} /></Button></div>

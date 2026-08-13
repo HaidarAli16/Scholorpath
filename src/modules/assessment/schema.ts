@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { fieldOptions, intakeOptions, qualificationOptions, residenceOptions } from "./types";
+import { fieldOptions, qualificationOptions } from "./types";
 
 export const assessmentInputSchema = z.object({
   firstName: z.string().trim().min(2).max(60).regex(/^[\p{L}\p{M}][\p{L}\p{M} .'-]*$/u, "Use letters and normal name punctuation only."),
-  nationality: z.enum(["Pakistan", "India", "Bangladesh"]),
-  currentCountry: z.enum(residenceOptions),
+  nationality: z.string().trim().min(2).max(60),
+  currentCountry: z.string().trim().min(2).max(60),
   qualification: z.string().trim().min(3).max(120),
   institution: z.string().trim().min(2).max(160).refine((value) => !/^(other|n\/a|none|unknown)$/i.test(value), "Enter the institution shown on your academic record."),
   fieldFamily: z.enum(fieldOptions),
@@ -12,11 +12,11 @@ export const assessmentInputSchema = z.object({
   graduationYear: z.number().int().min(1980).max(new Date().getFullYear() + 4),
   gradeValue: z.number().positive().max(100),
   gradeMaximum: z.union([z.literal(4), z.literal(5), z.literal(10), z.literal(100)]),
-  intake: z.enum(intakeOptions),
+  intake: z.string().trim().min(4).max(30),
   fundingNeed: z.enum(["full", "major", "partial", "self"]),
-  budgetCurrency: z.enum(["PKR", "INR", "BDT", "USD"]),
+  budgetCurrency: z.enum(["PKR", "INR", "BDT", "USD", "EUR", "GBP", "CAD", "AUD", "JPY", "CNY", "KRW", "SGD", "MYR", "TRY", "HUF", "NZD", "SAR", "SEK", "CHF", "NOK"]),
   availableBudget: z.number().min(0).max(1000000000),
-  destinationPreference: z.enum(["suggest", "UK", "Germany", "Europe"]),
+  destinationPreference: z.enum(["suggest", "World", "UK", "Germany", "Europe", "US", "Canada", "Australia", "Japan", "Korea", "Singapore", "Malaysia"]),
   englishStatus: z.enum(["not_started", "preparing", "booked", "completed"]),
   englishTest: z.enum(["IELTS", "TOEFL", "PTE", "Other"]).optional(),
   englishScore: z.number().min(0).max(120).optional(),
@@ -34,7 +34,7 @@ export const assessmentInputSchema = z.object({
     "deadlines",
   ]),
 }).superRefine((input, context) => {
-  const allowedQualifications = qualificationOptions[input.nationality] as readonly string[];
+  const allowedQualifications = (qualificationOptions[input.nationality] ?? qualificationOptions._default) as readonly string[];
   if (!allowedQualifications.includes(input.qualification)) {
     context.addIssue({ code: "custom", path: ["qualification"], message: `Choose a qualification valid for ${input.nationality}.` });
   }

@@ -1,20 +1,27 @@
 import type { IntelligenceReport } from "../intelligence/engine";
 
-export const originOptions = ["Pakistan", "India", "Bangladesh"] as const;
-export type OriginCountry = (typeof originOptions)[number];
+export const originOptions = [
+  "Pakistan", "India", "Bangladesh",
+  "Nigeria", "China", "United States", "Indonesia", "Brazil", "Russia", "Mexico",
+  "Japan", "Philippines", "Ethiopia", "Egypt", "Vietnam", "DR Congo", "Turkey",
+  "Iran", "Germany", "Thailand", "United Kingdom", "France", "Italy", "Tanzania",
+  "South Africa", "Myanmar", "Kenya", "South Korea", "Colombia", "Spain",
+  "Uganda", "Argentina", "Algeria", "Sudan", "Ukraine", "Iraq", "Afghanistan",
+  "Poland", "Canada", "Morocco", "Saudi Arabia", "Uzbekistan", "Peru", "Angola",
+  "Malaysia", "Mozambique", "Ghana", "Yemen", "Nepal", "Venezuela"
+] as const;
+export type OriginCountry = string;
 
 export const residenceOptions = [
-  "Pakistan",
-  "India",
-  "Bangladesh",
-  "United Arab Emirates",
-  "Saudi Arabia",
-  "Qatar",
-  "United Kingdom",
-  "Other",
+  "Pakistan", "India", "Bangladesh",
+  "United Arab Emirates", "Saudi Arabia", "Qatar", "United Kingdom",
+  "United States", "Canada", "Australia", "Germany", "France",
+  "Italy", "Spain", "Malaysia", "Singapore", "Oman", "Kuwait",
+  "Bahrain", "China", "Japan", "South Korea", "Turkey", "Egypt",
+  "South Africa", "Nigeria", "Kenya", "Brazil", "Mexico", "Other"
 ] as const;
 
-export const qualificationOptions = {
+export const qualificationOptions: Record<string, readonly string[]> = {
   Pakistan: [
     "Four-year bachelor's degree",
     "Two-year bachelor's + master's",
@@ -36,7 +43,15 @@ export const qualificationOptions = {
     "Master's degree",
     "Other qualification",
   ],
-} as const;
+  _default: [
+    "Bachelor's degree (3-year)",
+    "Bachelor's degree (4-year)",
+    "Master's degree",
+    "Professional degree (Medicine, Law, etc.)",
+    "PhD or doctoral degree",
+    "Other qualification",
+  ],
+};
 
 export const fieldOptions = [
   "Business, management and law",
@@ -51,12 +66,23 @@ export const fieldOptions = [
   "Services",
 ] as const;
 
-export const intakeOptions = [
-  "September 2027",
-  "January 2028",
-  "September 2028",
-  "I am flexible",
-] as const;
+function generateIntakeOptions(): string[] {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  const options: string[] = [];
+  for (let year = currentYear; year <= currentYear + 2; year++) {
+    if (year === currentYear && currentMonth >= 6) continue;
+    options.push(`September ${year}`);
+  }
+  for (let year = currentYear + 1; year <= currentYear + 2; year++) {
+    options.push(`January ${year}`);
+  }
+  options.sort();
+  options.push("I am flexible");
+  return options;
+}
+export const intakeOptions: readonly string[] = generateIntakeOptions();
 
 export type FundingNeed = "full" | "major" | "partial" | "self";
 export type EnglishStatus = "not_started" | "preparing" | "booked" | "completed";
@@ -70,7 +96,7 @@ export type ResearchEvidence =
 
 export interface AssessmentInput {
   firstName: string;
-  nationality: OriginCountry;
+  nationality: string;
   currentCountry: string;
   qualification: string;
   institution: string;
@@ -81,9 +107,9 @@ export interface AssessmentInput {
   gradeMaximum: 4 | 5 | 10 | 100;
   intake: string;
   fundingNeed: FundingNeed;
-  budgetCurrency: "PKR" | "INR" | "BDT" | "USD";
+  budgetCurrency: "PKR" | "INR" | "BDT" | "USD" | "EUR" | "GBP" | "CAD" | "AUD" | "JPY" | "CNY" | "KRW" | "SGD" | "MYR" | "TRY" | "HUF" | "NZD" | "SAR" | "SEK" | "CHF" | "NOK";
   availableBudget: number;
-  destinationPreference: "suggest" | "UK" | "Germany" | "Europe";
+  destinationPreference: "suggest" | "World" | "UK" | "Germany" | "Europe" | "US" | "Canada" | "Australia" | "Japan" | "Korea" | "Singapore" | "Malaysia";
   englishStatus: EnglishStatus;
   englishTest?: "IELTS" | "TOEFL" | "PTE" | "Other";
   englishScore?: number;
@@ -103,7 +129,7 @@ export type RouteState = "conditional" | "unknown" | "not_recommended";
 export type RouteStrength = "strong" | "promising" | "explore";
 
 export interface PathwayLane {
-  id: "uk" | "germany" | "erasmus";
+  id: string;
   title: string;
   subtitle: string;
   state: RouteState;

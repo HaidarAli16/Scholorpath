@@ -1,6 +1,166 @@
 # ScholarPath implementation status
 
-## Sprint 6: Beta release readiness
+## Sprint 12: Stable authenticated boot
+
+Status: **LOCAL ACCEPTANCE PASSED** — implemented and browser-tested on 10 August 2026
+
+- Replaced the anonymous/default first-render flash with server-supplied authenticated workspace, report, catalogue, recommendation, and directory state.
+- Authenticated identity, profile, report and workspace data now appear together after resolution.
+- Fixed invalid nested task-card buttons that caused hydration errors and the development issue badge.
+- Removed the temporary loading shell entirely. Verified `/today`, `/recommendations`, and `/countries` render resolved live content without guest-state, zero-state, recommendation-loader, login redirect, hydration mismatch, or recent console errors.
+- Verification: ESLint passed, TypeScript passed, 25/25 tests passed and production build passed.
+
+## Sprint 11: Annotated UX acceptance — 29/29 closed
+
+Status: **LOCAL ACCEPTANCE PASSED** — implemented and browser-tested on 10 August 2026
+
+- Report, Discover, opportunity detail, country detail, institution directory and funding drawer were redesigned around scan-first student decisions.
+- Real country flags and repaired UTF-8 text replace the corrupted symbols previously visible in country and institution records.
+- Today and Recommendations preserve the completed onboarding session instead of returning the student to login.
+- Today metrics, alignment bars and priority move now use the current pathway report instead of hard-coded presentation values.
+- Ambiguous Supabase relationship joins in Workspace and Tasks were fixed; the live board loads and duplicate active profile-gap tasks are reconciled.
+- Browser acceptance evidence and the 29-item matrix are recorded in [UX_COMMENT_ACCEPTANCE_2026-08-10.md](UX_COMMENT_ACCEPTANCE_2026-08-10.md).
+- Verification: ESLint passed, TypeScript passed, 25/25 tests passed, production build passed, and `npm audit` reports 0 vulnerabilities.
+
+## Sprint 10: Complete Backend — All 15 Issues Resolved
+
+Status: **LIVE** — all backend APIs, migrations, and engine updates deployed on 8 August 2026
+Agent: **Antigravity (Google DeepMind)**
+Frontend: **Codex** — 23 UI tasks queued in SYNC_TRACKER.md (all unblocked)
+
+### What was built (Backend only)
+
+- **Migration 019 — Notification System**: `create_notification()` reusable helper. Triggers on scholarship/programme publish → notify matching users. Unique index on `(user_id, event_key)` for deduplication. Outbox event `notification.email_requested` for Resend integration.
+- **Migration 020 — Grade Normalization**: `grade_systems` table with 13 education systems (PK, IN, BD, UK, US, DE, CN, JP, KR, AU, TR). `normalizeGrade()` engine function with scale-aware conversion including German inverted scaling.
+- **Notifications API**: `GET /api/notifications` (list with unread count, filtering, pagination). `PATCH /api/notifications` (mark read by IDs or all).
+- **Institution Search API**: `GET /api/institutions/search?q=&country=&limit=` with fuzzy ilike matching.
+- **Assessment Draft API**: `GET /api/assessment/draft` (load saved draft). `PUT /api/assessment/draft` (save partial answers).
+- **Applications CRUD API**: Full REST — `GET/POST /api/applications`, `GET/PATCH/DELETE /api/applications/[id]` with requirements join.
+- **Catalogue country filter**: Already existed (`?country=GB`), verified working.
+
+### Migrations applied
+
+| Migration | File | Status |
+|---|---|---|
+| 019 | `20260808180000_019_notification_system.sql` | ✅ Applied |
+| 020 | `20260808180100_020_grade_normalization.sql` | ✅ Applied |
+
+### New API routes (28 total)
+
+| Route | Method | Purpose |
+|---|---|---|
+| `/api/notifications` | GET, PATCH | Notification list + mark read |
+| `/api/institutions/search` | GET | Fuzzy institution search |
+| `/api/assessment/draft` | GET, PUT | Draft save/load |
+| `/api/applications` | GET, POST | List + create applications |
+| `/api/applications/[id]` | GET, PATCH, DELETE | Single app CRUD |
+| `/api/recommendations/detailed` | GET | Full scoring breakdown |
+
+### Verification
+
+- 24 unit tests pass (all 6 suites)
+- TypeScript strict-mode check passes (0 errors)
+- Migrations 019–020 applied to live Supabase
+
+## Sprint 9: Worldwide Unblock — Backend Complete
+
+Status: **LIVE** — all backend restrictions removed, migrated and verified on 8 August 2026
+Agent: **Antigravity (Google DeepMind)**
+Frontend: **Codex** — 12 UI tasks queued in SYNC_TRACKER.md
+
+### What was built (Backend only)
+
+- **Migration 018**: `profile_country` enum → `text`. All DB columns (`student_profiles.nationality`, `equivalencies.origin_country`, `institution_requirements.origin_country`) migrated. `submit_assessment()` no longer casts to enum. Enum type dropped.
+- **Types worldwide**: `originOptions` expanded to 50 countries. `residenceOptions` to 30. `qualificationOptions` has `_default` key for unknown countries (6 generic options). `OriginCountry` is now `string`. `budgetCurrency` expanded to 20 currencies. `intakeOptions` dynamically generated from current date. `PathwayLane.id` is now `string`.
+- **Schema worldwide**: `nationality` and `currentCountry` accept any string. `destinationPreference` accepts all 12 options. `intake` accepts any dynamic string. Qualification superRefine falls back to `_default`.
+- **Dynamic pathways**: 10 pathway definitions (UK, Germany, Erasmus, US, Canada, Australia, Japan, Korea, Singapore, Malaysia). `buildPathways()` generates 3 lanes based on destination preference and profile signals. Smart defaults for `suggest`/`World`.
+- **Detailed recommendations API**: `GET /api/recommendations/detailed` returns full scoring breakdown: run metadata, profile snapshot, summary (confirmed/conditional/failed counts), and per-entity results with `score_components`, `reasons`, `failed_gates`, `open_checks`, `next_actions`, `deadline_at`, `application_url`.
+
+### Migration applied
+
+| Migration | File | Status |
+|---|---|---|
+| 018 | `20260808150000_018_worldwide_nationality.sql` | ✅ Applied |
+
+### Verification
+
+- 24 unit tests pass (all 6 suites)
+- TypeScript strict-mode check passes (0 errors)
+- Migration applied to live Supabase via Management API
+
+## Sprint 8: Worldwide Recommendation System MVP
+
+Status: **LIVE** — implemented, migrated and verified on 8 August 2026
+Agent: **Antigravity (Google DeepMind)**
+
+### What was built
+
+- **Auto-rule generation on publish** — new `generate_rules_for_published_entity()` PL/pgSQL function hooks into `publish_opportunity_candidate()`. Every published scholarship/programme now automatically gets eligibility rules for the recommendation engine: nationality gates, qualification requirements, funding type matching, field family matching, English evidence, and destination visa signals.
+- **Worldwide eligibility rules seeded** — retroactive atomic_rules for all published scholarships by name pattern: Chevening (2yr work experience, nationality gate), Fulbright (English required, field preference), DAAD EPOS (experience preference), GKS (grade requirement), Türkiye Bursları (open to all, completion check), MEXT (age/graduation proxy). Universal English evidence rule for all.
+- **Recommendation engine expanded** — `preferenceScore()` now handles worldwide destinations: US, Canada, Australia, Japan, Korea, Singapore, Malaysia (in addition to existing UK, Germany, Europe). `suggest` and `World` give baseline scores.
+- **Live scholarships API: PK/IN/BD restriction removed** — `/api/scholarships/live` now accepts any nationality string, not just Pakistan/India/Bangladesh. Destination options expanded.
+- **Live scholarships module expanded** — WorqNow feed now fetches from 7 countries: UK, Germany, Netherlands, Ireland, USA, Canada, Australia (up from 4). Country names map expanded.
+- **Worldwide country intelligence** — 12 new country entries in `countries` table: US, CA, AU, JP, KR, SG, MY, TR, HU, NZ, SA, CN with realistic visa difficulty, post-study work months, living costs, healthcare, climate, safety data.
+
+### Migrations applied to production
+
+| Migration | File | Status |
+|---|---|---|
+| 015 | `20260808100000_015_auto_rules_on_publish.sql` | ✅ Applied |
+| 016 | `20260808100100_016_worldwide_eligibility_rules.sql` | ✅ Applied |
+| 017 | `20260808100200_017_worldwide_country_intelligence.sql` | ✅ Applied |
+
+### Verification
+
+- 24 unit tests pass (all 6 suites).
+- TypeScript strict-mode check passes (0 errors).
+- Migrations applied live via Supabase Management API.
+
+## Sprint 7: Cover MVP — Worldwide Scholarship Ingestion Pipeline
+
+Status: **LIVE on Supabase `gbhzekncpqeytknxanzy`** — implemented, migrated and verified on 7–8 August 2026
+Agent: **Antigravity (Google DeepMind)**
+
+### What was built
+
+- **60 monitored official scholarship sources** from 20+ countries/regions registered in the ingestion scheduler — UK (Chevening, CSC, Gates Cambridge, Rhodes, Clarendon), EU (Erasmus Mundus EACEA, MSCA), Germany (DAAD, KAS, HBS, FES), Netherlands (Holland, OTS, OKP/NFP), Ireland (GOI-IES), Switzerland (ESKAS, ETH, EPFL), Sweden (SI), USA (Fulbright, Humphrey), Canada (Vanier, Banting, IDRC), Australia (Australia Awards), Japan (MEXT, JASSO, ADB-JSP), Korea (GKS), China (CSC), Singapore (NUS, A*STAR), Malaysia (Khazanah, MIS), Turkey (Türkiye Bursları), Hungary (Stipendium Hungaricum), New Zealand (Manaaki), Saudi Arabia (KAUST), IsDB (Merit + Need-Based), MasterCard Foundation, African Union.
+- **`structured_score` generated column** (0–100) on `opportunity_candidates` — scores candidates by field completeness to prioritise the review queue.
+- **`validate_candidate_for_publish()` DB function** — gates publication on required fields (title, provider, application URL), fixed with `array_append` to prevent operator resolution errors under `search_path = ''`.
+- **`publish_opportunity_candidate()` DB function** — the missing publish link: upserts an approved candidate into `scholarships` or `programmes` table with full source provenance, `state = 'published'`, `published_at`, and an `audit_events` log entry.
+- **`/api/admin/ingestion` extended** with a new `publish` action, `approvedCandidates` in GET, `failingSources` health data, and `structured_score` in candidate selects.
+- **`IngestionCommandCenter` rebuilt** with 5 tabs: Sources (country badge, 6-col table, 60 sources visible), Review (score badge, validation feedback), **Publish** (new — Publish to Catalogue button, field preview, score warning), **Source Health** (new — failing sources with retry, stale sources), Run History.
+- **`useIngestion` hook extended** with `approvedCandidates`, `failingSources`, `structured_score`, `approved` metric counter.
+
+### Migrations applied to production
+
+| Migration | File | Status |
+|---|---|---|
+| 012 | `20260807085900_012_global_source_registry.sql` | ✅ Applied |
+| 013 | `20260807090000_013_candidate_structured_fields.sql` | ✅ Applied |
+| 013b | `20260807095000_013b_fix_validate_function.sql` | ✅ Applied (array_append fix) |
+| 014 | `20260807090100_014_publish_candidate_function.sql` | ✅ Applied |
+
+### Verification
+
+- 24 unit tests pass (unchanged).
+- TypeScript strict-mode check passes (0 errors).
+- Next.js production build passes.
+- Migrations applied live via Supabase Management API.
+- Admin panel at `/admin` → Ingestion shows 60 monitored sources, 37 due, 100 candidates in review queue, 1 approved and ready to publish (Erasmus Mundus AI programme) — confirmed in browser.
+- Publish function `validate_candidate_for_publish` array-literal bug patched and re-applied.
+
+### Scope decision recorded
+
+- **Worldwide from day one.** No PK/IN/BD student-origin restriction on the ingestion pipeline. All 50+ global funders are in scope.
+- **Future roadmap:** Remove student-origin restriction from onboarding and eligibility engine to open the platform to any student globally.
+
+### What remains for full catalogue visibility
+
+1. Admin reviewer approves pending candidates in the Review queue (`/admin` → Ingestion → Review).
+2. Admin publishes approved candidates via the Publish tab — each click writes one row to `scholarships` or `programmes` table.
+3. Students see published scholarships in `/discover` and receive them in Recommendations automatically.
+
+
 
 Status: implementation complete; production credentials and deployment validation remain environment-owned
 

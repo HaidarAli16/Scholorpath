@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   const safeName = parsed.data.name.normalize("NFKD").replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-").slice(-100);
   const storagePath = `${user.id}/${crypto.randomUUID()}-${safeName}`;
   const { data, error } = await supabase.storage.from("student-documents").createSignedUploadUrl(storagePath);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Secure upload could not be prepared." }, { status: 500 });
 
   return NextResponse.json({
     path: storagePath,

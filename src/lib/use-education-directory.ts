@@ -1,14 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { fallbackCountries, fallbackInstitutions } from "@/modules/directory/fallback-data";
 import type { CountryIntelligence, InstitutionDirectoryItem } from "@/modules/directory/types";
+export type DirectoryBootstrap = { countries: CountryIntelligence[]; institutions: InstitutionDirectoryItem[]; mode: "live" | "unavailable"; warning?: string | null };
 
-export function useEducationDirectory() {
-  const [countries, setCountries] = useState<CountryIntelligence[]>(fallbackCountries);
-  const [institutions, setInstitutions] = useState<InstitutionDirectoryItem[]>(fallbackInstitutions);
-  const [mode, setMode] = useState<"loading" | "live" | "curated-fallback">("loading");
-  const [warning, setWarning] = useState<string | null>(null);
+export function useEducationDirectory(initial?: DirectoryBootstrap) {
+  const [countries, setCountries] = useState<CountryIntelligence[]>(initial?.countries ?? []);
+  const [institutions, setInstitutions] = useState<InstitutionDirectoryItem[]>(initial?.institutions ?? []);
+  const [mode, setMode] = useState<"loading" | "live" | "unavailable">(initial?.mode ?? "loading");
+  const [warning, setWarning] = useState<string | null>(initial?.warning ?? null);
 
   const refresh = useCallback(async () => {
     try {
@@ -18,19 +18,19 @@ export function useEducationDirectory() {
       ]);
       const [countryPayload, institutionPayload] = await Promise.all([countryResponse.json(), institutionResponse.json()]);
       if (!countryResponse.ok || !institutionResponse.ok) throw new Error(countryPayload.error || institutionPayload.error || "Education directory could not be loaded.");
-      setCountries(countryPayload.countries?.length ? countryPayload.countries : fallbackCountries);
-      setInstitutions(institutionPayload.institutions?.length ? institutionPayload.institutions : fallbackInstitutions);
-      setMode(countryPayload.mode === "live" && institutionPayload.mode === "live" ? "live" : "curated-fallback");
+      setCountries(countryPayload.countries ?? []);
+      setInstitutions(institutionPayload.institutions ?? []);
+      setMode("live");
       setWarning(countryPayload.warning || institutionPayload.warning || null);
     } catch (cause) {
-      setCountries(fallbackCountries);
-      setInstitutions(fallbackInstitutions);
-      setMode("curated-fallback");
+      setCountries([]);
+      setInstitutions([]);
+      setMode("unavailable");
       setWarning(cause instanceof Error ? cause.message : "Live education data is unavailable.");
     }
   }, []);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => { if (!initial) void refresh(); }, [initial, refresh]);
   return { countries, institutions, mode, warning, refresh };
 }
 

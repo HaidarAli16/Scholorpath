@@ -1,4 +1,4 @@
-project_id = "scholarpath"
+project_id = "candidroute"
 
 [api]
 enabled = true

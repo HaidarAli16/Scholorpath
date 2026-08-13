@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { safeInternalPath } from "@/lib/auth/access";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  const next = url.searchParams.get("next") || "/today";
-  const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/today";
+  const safeNext = safeInternalPath(url.searchParams.get("next"));
   const supabase = await createSupabaseServerClient();
 
   if (code && supabase) {
@@ -15,4 +15,3 @@ export async function GET(request: Request) {
 
   return NextResponse.redirect(new URL("/auth?error=callback", url.origin));
 }
-

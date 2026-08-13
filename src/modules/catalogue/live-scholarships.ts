@@ -1,7 +1,7 @@
-import type { AssessmentInput, LiveScholarshipPreview } from "@/modules/assessment/types";
+import type { LiveScholarshipPreview } from "@/modules/assessment/types";
 
 const providerBaseUrl = "https://api.worqnow.ai";
-type ProviderCountry = "uk" | "de" | "nl" | "ie" | "usa" | "ca" | "au";
+type ProviderCountry = "uk" | "de" | "nl" | "ie" | "usa" | "ca" | "au" | "jp" | "kr" | "sg" | "my";
 
 type ProviderScholarship = {
   name?: string;
@@ -27,6 +27,10 @@ const countryNames: Record<ProviderCountry, string> = {
   usa: "United States",
   ca: "Canada",
   au: "Australia",
+  jp: "Japan",
+  kr: "South Korea",
+  sg: "Singapore",
+  my: "Malaysia",
 };
 
 function clean(value?: string) {
@@ -42,14 +46,22 @@ function stableId(...parts: string[]) {
   return parts.join("-").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 110);
 }
 
-function countriesFor(input?: Partial<AssessmentInput>): ProviderCountry[] {
+function countriesFor(input?: { destinationPreference?: string }): ProviderCountry[] {
   if (input?.destinationPreference === "UK") return ["uk"];
   if (input?.destinationPreference === "Germany") return ["de"];
   if (input?.destinationPreference === "Europe") return ["de", "nl", "ie"];
-  return ["uk", "de", "nl", "ie"];
+  if (input?.destinationPreference === "US") return ["usa"];
+  if (input?.destinationPreference === "Canada") return ["ca"];
+  if (input?.destinationPreference === "Australia") return ["au"];
+  if (input?.destinationPreference === "Japan") return ["jp"];
+  if (input?.destinationPreference === "Korea") return ["kr"];
+  if (input?.destinationPreference === "Singapore") return ["sg"];
+  if (input?.destinationPreference === "Malaysia") return ["my"];
+  if (input?.destinationPreference === "World" || input?.destinationPreference === "suggest") return ["usa", "ca", "au", "uk", "de", "jp", "sg"];
+  return ["uk", "de", "nl", "ie", "usa", "ca", "au"];
 }
 
-function fitReasons(scholarship: ProviderScholarship, input?: Partial<AssessmentInput>) {
+function fitReasons(scholarship: ProviderScholarship, input?: { nationality?: string, fundingNeed?: string }) {
   const reasons: string[] = [];
   const type = clean(scholarship.type).toLowerCase();
   if (type.includes("automatic")) reasons.push("The feed describes this as automatic consideration; the university must confirm it.");
@@ -59,7 +71,7 @@ function fitReasons(scholarship: ProviderScholarship, input?: Partial<Assessment
   return reasons.slice(0, 3);
 }
 
-async function fetchCountry(country: ProviderCountry, input?: Partial<AssessmentInput>): Promise<LiveScholarshipPreview[]> {
+async function fetchCountry(country: ProviderCountry, input?: { destinationPreference?: string, nationality?: string, fundingNeed?: string }): Promise<LiveScholarshipPreview[]> {
   const feedUrl = `${providerBaseUrl}/education/${country}/scholarships`;
   const universitiesRequest = fetch(`${providerBaseUrl}/education/${country}/universities`, { headers: { accept: "application/json" }, next: { revalidate: 21600 }, signal: AbortSignal.timeout(5000) }).catch(() => null);
   const scholarshipsResponse = await fetch(feedUrl, { headers: { accept: "application/json" }, next: { revalidate: 21600 }, signal: AbortSignal.timeout(8000) });
@@ -88,7 +100,7 @@ async function fetchCountry(country: ProviderCountry, input?: Partial<Assessment
   });
 }
 
-export async function fetchLiveScholarships(input?: Partial<AssessmentInput>, limit = 12) {
+export async function fetchLiveScholarships(input?: { destinationPreference?: string, nationality?: string, fundingNeed?: string }, limit = 12) {
   const countries = countriesFor(input);
   const results = await Promise.allSettled(countries.map((country) => fetchCountry(country, input)));
   const items = results.flatMap((result) => result.status === "fulfilled" ? result.value : []);

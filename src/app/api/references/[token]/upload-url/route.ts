@@ -20,6 +20,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   const safeName = parsed.data.name.normalize("NFKD").replace(/[^a-zA-Z0-9._-]+/g, "-").slice(-100);
   const path = `${recommender.id}/${crypto.randomUUID()}-${safeName}`;
   const { data, error } = await admin.storage.from("confidential-references").createSignedUploadUrl(path);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Secure reference upload could not be prepared." }, { status: 500 });
   return NextResponse.json({ path, token: data.token });
 }

@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { demoExecutionData } from "@/modules/tasks/demo";
 import { taskStates, type ExecutionTask, type TaskState } from "@/modules/tasks/types";
 import { guardMutation } from "@/lib/api/security";
 
@@ -23,12 +22,16 @@ async function context() {
 
 export async function GET() {
   const { supabase, user } = await context();
-  if (!supabase || !user) return NextResponse.json({ mode: "demo", authenticated: false, ...demoExecutionData() });
+  if (!supabase) return NextResponse.json({ error: "Task database is unavailable." }, { status: 503 });
+  if (!user) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
   const [taskResult, readinessResult] = await Promise.all([
-    supabase.from("tasks").select("*, applications(title), task_impacts(*, applications(title)), task_dependencies!task_dependencies_task_id_fkey(*, depends_on:tasks!task_dependencies_depends_on_task_id_fkey(title,state)), task_events(id,event_type,from_state,to_state,metadata,created_at)").eq("user_id", user.id).order("impact_score", { ascending: false }).order("due_at", { ascending: true }),
-    supabase.from("application_readiness_snapshots").select("*, applications(title)").eq("user_id", user.id).order("generated_at", { ascending: false }),
+    supabase.from("tasks").select("*, applications!tasks_application_owner_fk(title), task_impacts!task_impacts_task_owner_fk(*, applications!task_impacts_application_owner_fk(title)), task_dependencies!task_dependencies_task_owner_fk(*, depends_on:tasks!task_dependencies_blocker_owner_fk(title,state)), task_events!task_events_task_owner_fk(id,event_type,from_state,to_state,metadata,created_at)").eq("user_id", user.id).order("impact_score", { ascending: false }).order("due_at", { ascending: true }),
+    supabase.from("application_readiness_snapshots").select("*, applications!readiness_application_owner_fk(title)").eq("user_id", user.id).order("generated_at", { ascending: false }),
   ]);
-  if (taskResult.error) return NextResponse.json({ error: taskResult.error.message, setupRequired: true }, { status: 500 });
+  if (taskResult.error) {
+    console.error("Task query failed", { code: taskResult.error.code, message: taskResult.error.message });
+    return NextResponse.json({ error: "Tasks could not be loaded.", setupRequired: true }, { status: 500 });
+  }
   const seen = new Set<string>();
   const readiness = (readinessResult.data ?? []).filter((row: Record<string, unknown>) => { const id = String(row.application_id); if (seen.has(id)) return false; seen.add(id); return true; }).map((row: Record<string, unknown>) => ({ ...row, application_title: (row.applications as { title?: string } | null)?.title || "Application", updated_at: row.generated_at }));
   const tasks = (taskResult.data ?? []).map(normalizeTask);
@@ -41,18 +44,19 @@ export async function POST(request: Request) {
   const parsed = payloadSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid task action.", issues: parsed.error.flatten() }, { status: 400 });
   const { supabase, user } = await context();
-  if (!supabase || !user) return NextResponse.json({ error: "Sign in to save task changes.", demo: true }, { status: 401 });
+  if (!supabase) return NextResponse.json({ error: "Task database is unavailable." }, { status: 503 });
+  if (!user) return NextResponse.json({ error: "Sign in to save task changes." }, { status: 401 });
   const action = parsed.data;
   if (action.action === "create") {
     const result = await supabase.rpc("create_personal_task", { p_title: action.title, p_description: action.description ?? null, p_due_at: action.dueAt ?? null, p_impact_level: action.impactLevel, p_impact_type: action.impactType, p_application_id: action.applicationId ?? null, p_estimated_minutes: action.estimatedMinutes ?? null });
-    if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
+    if (result.error) return NextResponse.json({ error: "Task could not be created." }, { status: 500 });
     return NextResponse.json({ ok: true, data: normalizeTask(result.data) });
   }
   const current = await supabase.from("tasks").select("id,application_id").eq("id", action.id).eq("user_id", user.id).single();
   if (current.error) return NextResponse.json({ error: "Task not found." }, { status: 404 });
   if (action.action === "update") {
     const result = await supabase.rpc("update_task_metadata", { p_task_id: action.id, p_title: action.title ?? null, p_description: action.description ?? null, p_due_at: action.dueAt ?? null, p_due_at_set: action.dueAt !== undefined, p_assigned_name: action.assignedName ?? null, p_assigned_email: action.assignedEmail ?? null, p_impact_level: action.impactLevel ?? null });
-    if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
+    if (result.error) return NextResponse.json({ error: "Task could not be updated." }, { status: 500 });
     return NextResponse.json({ ok: true, data: normalizeTask(result.data) });
   }
   const result = await supabase.rpc("transition_task", {
@@ -64,7 +68,7 @@ export async function POST(request: Request) {
   });
   if (result.error) {
     const status = result.error.code === "23514" ? 409 : result.error.code === "P0002" ? 404 : 500;
-    return NextResponse.json({ error: result.error.message }, { status });
+    return NextResponse.json({ error: status === 409 ? "Task transition is not allowed." : status === 404 ? "Task not found." : "Task state could not be changed." }, { status });
   }
   return NextResponse.json({ ok: true, data: result.data });
 }

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { fallbackInstitutions } from "@/modules/directory/fallback-data";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { repairTextTree } from "@/lib/text/repair-mojibake";
 
 export const dynamic = "force-dynamic";
 
@@ -15,10 +15,9 @@ const querySchema = z.object({
 export async function GET(request: Request) {
   const parsed = querySchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));
   if (!parsed.success) return NextResponse.json({ error: "Invalid institution query." }, { status: 400 });
-  const fallback = filterFallback(parsed.data);
-  if (!isSupabaseConfigured) return NextResponse.json({ mode: "curated-fallback", institutions: fallback });
+  if (!isSupabaseConfigured) return NextResponse.json({ error: "Institution directory database is not configured." }, { status: 503 });
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return NextResponse.json({ mode: "curated-fallback", institutions: fallback });
+  if (!supabase) return NextResponse.json({ error: "Institution directory is unavailable." }, { status: 503 });
 
   let institutionQuery = supabase.from("institutions").select("*").eq("state", "published").order("official_name");
   if (parsed.data.country) institutionQuery = institutionQuery.eq("country_code", parsed.data.country.toUpperCase());
@@ -35,7 +34,7 @@ export async function GET(request: Request) {
     supabase.from("source_records").select("id,owner_name,canonical_url,last_verified_at,next_review_at").eq("status", "verified"),
   ]);
   const results = [institutionsResult, countriesResult, citiesResult, campusesResult, rankingsResult, equivalenciesResult, requirementsResult, programmesResult, sourcesResult];
-  if (results.some((result) => result.error)) return NextResponse.json({ mode: "curated-fallback", institutions: fallback, warning: "Live institution directory is temporarily unavailable." });
+  if (results.some((result) => result.error)) return NextResponse.json({ error: "Institution directory could not be loaded." }, { status: 500 });
 
   const countries = new Map((countriesResult.data ?? []).map((country) => [country.code, country]));
   const cities = new Map((citiesResult.data ?? []).map((city) => [city.id, city.name]));
@@ -54,7 +53,7 @@ export async function GET(request: Request) {
       type: institution.institution_type,
       countryCode: institution.country_code,
       countryName: country?.name ?? institution.country_code,
-      flag: country?.flag_emoji ?? "🌍",
+      flag: country?.flag_emoji ?? "",
       city: institution.city_id ? cities.get(institution.city_id) ?? null : null,
       websiteUrl: institution.website_url,
       admissionsUrl: institution.admissions_url,
@@ -71,10 +70,6 @@ export async function GET(request: Request) {
       requirements: (requirementsResult.data ?? []).filter((item) => item.institution_id === institution.id && (!parsed.data.origin || !item.origin_country || item.origin_country === parsed.data.origin)).map((item) => ({ id: item.id, type: item.requirement_type, label: item.label, description: item.description, required: item.required, originCountry: item.origin_country, studyLevel: item.study_level, source: sourceShape(item.source_id) })),
     };
   });
-  return NextResponse.json({ mode: "live", institutions, generatedAt: new Date().toISOString() });
-}
-
-function filterFallback(query: z.infer<typeof querySchema>) {
-  return fallbackInstitutions.filter((institution) => (!query.country || institution.countryCode === query.country.toUpperCase()) && (!query.q || institution.name.toLowerCase().includes(query.q.toLowerCase()))).map((institution) => query.origin ? { ...institution, equivalencies: institution.equivalencies.filter((item) => item.originCountry === query.origin) } : institution);
+  return NextResponse.json(repairTextTree({ mode: "live", institutions, generatedAt: new Date().toISOString() }));
 }
 

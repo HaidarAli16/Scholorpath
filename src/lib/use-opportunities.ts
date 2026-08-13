@@ -34,6 +34,7 @@ export type RecommendationComponent = {
 };
 
 export type Portfolio = { portfolio_items?: Array<{ entity_type: string; entity_id: string }> };
+export type OpportunitiesBootstrap = { items: CatalogueItem[]; recommendations: RecommendationComponent[]; mode: "live" | "unavailable" };
 
 const countries: Record<string, string> = { GB: "United Kingdom", UK: "United Kingdom", DE: "Germany", IE: "Ireland", NL: "Netherlands", FR: "France", SE: "Sweden", FI: "Finland", EU: "Europe" };
 const currency = new Intl.NumberFormat("en", { maximumFractionDigits: 0 });
@@ -65,11 +66,11 @@ function countryFlag(code: string) {
   return String.fromCodePoint(...[...code].map((letter) => 127397 + letter.charCodeAt(0)));
 }
 
-export function useOpportunities(portfolios?: unknown[]) {
-  const [items, setItems] = useState<CatalogueItem[]>([]);
-  const [recommendations, setRecommendations] = useState<RecommendationComponent[]>([]);
+export function useOpportunities(portfolios?: unknown[], initial?: OpportunitiesBootstrap) {
+  const [items, setItems] = useState<CatalogueItem[]>(initial?.items ?? []);
+  const [recommendations, setRecommendations] = useState<RecommendationComponent[]>(initial?.recommendations ?? []);
   const [discoveryItems, setDiscoveryItems] = useState<Opportunity[]>([]);
-  const [mode, setMode] = useState<"loading" | "demo" | "live" | "live-discovery">("loading");
+  const [mode, setMode] = useState<"loading" | "live" | "live-discovery" | "unavailable">(initial?.mode ?? "loading");
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -87,15 +88,20 @@ export function useOpportunities(portfolios?: unknown[]) {
       const discovery = discoveryResponse.ok ? await discoveryResponse.json() as { items?: LiveScholarshipPreview[] } : { items: [] };
       const mappedDiscovery = (discovery.items ?? []).map(mapLiveScholarship);
       setDiscoveryItems(mappedDiscovery);
-      setMode(catalogue.mode === "live" ? "live" : mappedDiscovery.length ? "live-discovery" : "demo");
+      setMode(catalogue.mode === "live" ? "live" : mappedDiscovery.length ? "live-discovery" : "unavailable");
       setError(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Catalogue could not be loaded.");
-      setMode("demo");
+      setItems([]);
+      setRecommendations([]);
+      setDiscoveryItems([]);
+      setMode("unavailable");
     }
   }, []);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => {
+    if (!initial) void refresh();
+  }, [initial, refresh]);
 
   const opportunities = useMemo<Opportunity[]>(() => {
     const combined = [...mapCatalogueItems(items, recommendations, portfolios as Portfolio[] | undefined), ...discoveryItems];
@@ -118,6 +124,7 @@ function mapLiveScholarship(item: LiveScholarshipPreview): Opportunity {
     deadlineNote: "Live discovery lead · official cycle and deadline required",
     value: item.value,
     match: "Needs verification",
+    matchScore: 0,
     freshness: "Review due",
     reasons: item.fitReasons.length ? item.fitReasons : ["Surfaced from a live third-party discovery feed"],
     condition: item.eligibilitySummary,
@@ -146,6 +153,7 @@ export function mapCatalogueItems(items: CatalogueItem[], recommendations: Recom
         deadlineNote: item.deadline_at ? `${item.deadline_timezone || "Official source timezone"} · verify before submission` : "Deadline is an open check",
         value: valueLabel(item),
         match: matchLabel(result?.state),
+        matchScore: result ? Math.max(0, Math.min(100, Math.round(Number(result.final_score) || 0))) : 0,
         freshness: reviewDue ? "Review due" : "Verified",
         reasons: reasons.slice(0, 3),
         condition,

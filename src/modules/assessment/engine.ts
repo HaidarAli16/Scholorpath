@@ -7,11 +7,25 @@ import type {
 } from "./types";
 import { generateIntelligenceReport } from "../intelligence/engine";
 
-const currencyLabels = {
-  PKR: "PKR",
-  INR: "INR",
-  BDT: "BDT",
-  USD: "USD",
+const currencyLabels: Record<string, string> = {
+  PKR: "PKR", INR: "INR", BDT: "BDT", USD: "USD",
+  EUR: "EUR", GBP: "GBP", CAD: "CAD", AUD: "AUD",
+  JPY: "JPY", CNY: "CNY", KRW: "KRW", SGD: "SGD",
+  MYR: "MYR", TRY: "TRY", HUF: "HUF", NZD: "NZD",
+  SAR: "SAR", SEK: "SEK", CHF: "CHF", NOK: "NOK",
+};
+
+const pathwayDefinitions: Record<string, { title: string; subtitle: string; sourceUrl: string }> = {
+  uk: { title: "United Kingdom", subtitle: "Taught master's + flagship scholarship lane", sourceUrl: "https://www.gov.uk/student-visa" },
+  germany: { title: "Germany", subtitle: "Programme-fit and lower-tuition exploration lane", sourceUrl: "https://www.hochschulkompass.de/en/degree-programmes.html" },
+  erasmus: { title: "Erasmus Mundus", subtitle: "Consortium-led, scholarship-dependent portfolio lane", sourceUrl: "https://erasmus-plus.ec.europa.eu/opportunities/individuals/students/erasmus-mundus-joint-masters" },
+  us: { title: "United States", subtitle: "Graduate school + assistantship and fellowship lane", sourceUrl: "https://educationusa.state.gov/" },
+  canada: { title: "Canada", subtitle: "Post-graduation work pathway with research funding", sourceUrl: "https://www.educanada.ca/" },
+  australia: { title: "Australia", subtitle: "Research-track or coursework master's with post-study work", sourceUrl: "https://www.studyaustralia.gov.au/" },
+  japan: { title: "Japan", subtitle: "MEXT scholarship and university-specific funding lane", sourceUrl: "https://www.studyinjapan.go.jp/en/" },
+  korea: { title: "South Korea", subtitle: "GKS scholarship and affordable study lane", sourceUrl: "https://www.studyinkorea.go.kr/en/main.do" },
+  singapore: { title: "Singapore", subtitle: "Research-intensive with industry placement focus", sourceUrl: "https://www.moe.gov.sg/" },
+  malaysia: { title: "Malaysia", subtitle: "Affordable English-medium programmes with regional access", sourceUrl: "https://educationmalaysia.gov.my/" },
 };
 
 function normalizedGrade(input: AssessmentInput) {
@@ -21,7 +35,7 @@ function normalizedGrade(input: AssessmentInput) {
 function routeRank(route: PathwayLane, preference: AssessmentInput["destinationPreference"]) {
   const strength = { strong: 3, promising: 2, explore: 1 };
   const state = { conditional: 3, unknown: 2, not_recommended: 1 };
-  const preferredLane = preference === "UK" ? "uk" : preference === "Germany" ? "germany" : preference === "Europe" ? "erasmus" : null;
+  const preferredLane = preference === "Europe" ? "erasmus" : preference.toLowerCase();
   return (route.id === preferredLane ? 100 : 0) + strength[route.strength] * 10 + state[route.state];
 }
 
@@ -70,87 +84,117 @@ function commonConditions(input: AssessmentInput, grade: number) {
   return conditions;
 }
 
-function buildPathways(input: AssessmentInput, grade: number): PathwayLane[] {
-  const shared = commonConditions(input, grade);
+function buildPathwayForDestination(id: string, input: AssessmentInput, grade: number, shared: string[]): PathwayLane {
+  const def = pathwayDefinitions[id] || pathwayDefinitions.uk;
   const fullFunding = input.fundingNeed === "full";
   const hasResearch = !input.researchEvidence.includes("none");
-  const ukPreferred = input.destinationPreference === "UK";
-  const germanyPreferred = input.destinationPreference === "Germany";
-  const europePreferred = input.destinationPreference === "Europe";
+  const isPreferred = input.destinationPreference.toLowerCase() === id;
 
-  const uk: PathwayLane = {
-    id: "uk",
-    title: "United Kingdom",
-    subtitle: "Taught master’s + flagship scholarship lane",
-    state: shared.length ? "conditional" : "unknown",
-    strength: ukPreferred || grade >= 70 ? "strong" : "promising",
-    why: [
-      `${grade}% internal academic planning signal from your original grading scale.`,
-      "Your intended level aligns with the initial taught master’s workflow.",
-      fullFunding
-        ? "Full funding makes scholarship timing a critical dependency."
-        : "Your funding position allows both award and self-funded options to be researched.",
-    ],
-    conditions: [
-      ...shared,
-      ...(fullFunding
-        ? ["Scholarship eligibility and work-history rules must be evaluated separately from admission."]
-        : []),
-    ],
-    nextAction: "Verify three suitable courses before checking scholarship dependencies.",
-    sourceLabel: "Official programme and scholarship sources required",
-    sourceUrl: "https://www.gov.uk/student-visa",
-    evidenceState: "suggestion",
-  };
+  if (id === "uk") {
+    return {
+      id: "uk",
+      title: "United Kingdom",
+      subtitle: "Taught master’s + flagship scholarship lane",
+      state: shared.length ? "conditional" : "unknown",
+      strength: isPreferred || grade >= 70 ? "strong" : "promising",
+      why: [
+        `${grade}% internal academic planning signal from your original grading scale.`,
+        "Your intended level aligns with the initial taught master’s workflow.",
+        fullFunding ? "Full funding makes scholarship timing a critical dependency." : "Your funding position allows both award and self-funded options to be researched."
+      ],
+      conditions: [
+        ...shared,
+        ...(fullFunding ? ["Scholarship eligibility and work-history rules must be evaluated separately from admission."] : [])
+      ],
+      nextAction: "Verify three suitable courses before checking scholarship dependencies.",
+      sourceLabel: "Official programme and scholarship sources required",
+      sourceUrl: "https://www.gov.uk/student-visa",
+      evidenceState: "suggestion",
+    };
+  } else if (id === "germany") {
+    return {
+      id: "germany",
+      title: "Germany",
+      subtitle: "Programme-fit and lower-tuition exploration lane",
+      state: input.institution.toLowerCase().includes("other") ? "unknown" : "conditional",
+      strength: isPreferred || fullFunding ? "strong" : "promising",
+      why: [
+        "Potentially lower tuition makes this route relevant under funding pressure.",
+        `${input.fieldFamily} can be searched against structured programme subject requirements.`,
+        "Your original degree structure still needs programme-by-programme recognition checks."
+      ],
+      conditions: [
+        "Degree equivalence, subject credits and document format must be verified per programme.",
+        ...shared
+      ],
+      nextAction: "Create a DAAD/HRK-backed shortlist and record subject-credit requirements.",
+      sourceLabel: "DAAD and Higher Education Compass",
+      sourceUrl: "https://www.hochschulkompass.de/en/degree-programmes.html",
+      evidenceState: "suggestion",
+    };
+  } else if (id === "erasmus") {
+    return {
+      id: "erasmus",
+      title: "Erasmus Mundus",
+      subtitle: "Consortium-led, scholarship-dependent portfolio lane",
+      state: fullFunding || isPreferred || input.destinationPreference === "Europe" ? "conditional" : "unknown",
+      strength: fullFunding || hasResearch || isPreferred ? "strong" : "explore",
+      why: [
+        fullFunding ? "Your funding dependency makes fully funded consortium routes strategically important." : "This route can add geographic diversity to the portfolio.",
+        hasResearch ? "Your declared research/project evidence may strengthen programme fit." : "Your academic projects and motivation evidence will need deeper capture.",
+        "Each consortium owns its own criteria, dates and document workflow."
+      ],
+      conditions: [
+        "No universal Erasmus Mundus rule can confirm eligibility across all consortia.",
+        ...shared
+      ],
+      nextAction: "Identify two live consortia in your field and map their exact evidence requirements.",
+      sourceLabel: "Official Erasmus Mundus catalogue and consortium pages",
+      sourceUrl: "https://erasmus-plus.ec.europa.eu/opportunities/individuals/students/erasmus-mundus-joint-masters",
+      evidenceState: "suggestion",
+    };
+  } else {
+    return {
+      id,
+      title: def.title,
+      subtitle: def.subtitle,
+      state: shared.length ? "conditional" : "unknown",
+      strength: isPreferred || grade >= 75 || fullFunding ? "strong" : "promising",
+      why: [
+        `${grade}% internal academic planning signal from your original grading scale.`,
+        fullFunding ? "Your funding position makes scholarships a critical dependency." : "Your funding position allows both award and self-funded options to be researched.",
+        hasResearch ? "Your declared research/project evidence may strengthen programme fit." : "Your academic projects and motivation evidence will need deeper capture."
+      ],
+      conditions: [
+        ...shared,
+        ...(fullFunding ? ["Scholarship eligibility and work-history rules must be evaluated separately from admission."] : [])
+      ],
+      nextAction: "Verify three suitable courses before checking scholarship dependencies.",
+      sourceLabel: `Official ${def.title} sources required`,
+      sourceUrl: def.sourceUrl,
+      evidenceState: "suggestion",
+    };
+  }
+}
 
-  const germany: PathwayLane = {
-    id: "germany",
-    title: "Germany",
-    subtitle: "Programme-fit and lower-tuition exploration lane",
-    state: input.institution.toLowerCase().includes("other") ? "unknown" : "conditional",
-    strength: germanyPreferred || fullFunding ? "strong" : "promising",
-    why: [
-      "Potentially lower tuition makes this route relevant under funding pressure.",
-      `${input.fieldFamily} can be searched against structured programme subject requirements.`,
-      "Your original degree structure still needs programme-by-programme recognition checks.",
-    ],
-    conditions: [
-      "Degree equivalence, subject credits and document format must be verified per programme.",
-      ...shared,
-    ],
-    nextAction: "Create a DAAD/HRK-backed shortlist and record subject-credit requirements.",
-    sourceLabel: "DAAD and Higher Education Compass",
-    sourceUrl: "https://www.hochschulkompass.de/en/degree-programmes.html",
-    evidenceState: "suggestion",
-  };
+function buildPathways(input: AssessmentInput, grade: number): PathwayLane[] {
+  const shared = commonConditions(input, grade);
+  const allIds = Object.keys(pathwayDefinitions);
+  let selectedIds: string[] = [];
 
-  const erasmus: PathwayLane = {
-    id: "erasmus",
-    title: "Erasmus Mundus",
-    subtitle: "Consortium-led, scholarship-dependent portfolio lane",
-    state: fullFunding || europePreferred ? "conditional" : "unknown",
-    strength: fullFunding || hasResearch || europePreferred ? "strong" : "explore",
-    why: [
-      fullFunding
-        ? "Your funding dependency makes fully funded consortium routes strategically important."
-        : "This route can add geographic diversity to the portfolio.",
-      hasResearch
-        ? "Your declared research/project evidence may strengthen programme fit."
-        : "Your academic projects and motivation evidence will need deeper capture.",
-      "Each consortium owns its own criteria, dates and document workflow.",
-    ],
-    conditions: [
-      "No universal Erasmus Mundus rule can confirm eligibility across all consortia.",
-      ...shared,
-    ],
-    nextAction: "Identify two live consortia in your field and map their exact evidence requirements.",
-    sourceLabel: "Official Erasmus Mundus catalogue and consortium pages",
-    sourceUrl:
-      "https://erasmus-plus.ec.europa.eu/opportunities/individuals/students/erasmus-mundus-joint-masters",
-    evidenceState: "suggestion",
-  };
+  const pref = input.destinationPreference;
+  if (pref === "suggest" || pref === "World") {
+    if (input.fundingNeed === "full") selectedIds = ["us", "erasmus", "germany"];
+    else selectedIds = ["uk", "australia", "canada"];
+  } else if (pref === "Europe") {
+    selectedIds = ["germany", "erasmus", "uk"];
+  } else {
+    const mainId = pref.toLowerCase();
+    selectedIds = [mainId, ...allIds.filter(id => id !== mainId)].slice(0, 3);
+  }
 
-  return [uk, germany, erasmus].sort((a, b) => routeRank(b, input.destinationPreference) - routeRank(a, input.destinationPreference));
+  return selectedIds.map(id => buildPathwayForDestination(id, input, grade, shared))
+    .sort((a, b) => routeRank(b, input.destinationPreference) - routeRank(a, input.destinationPreference));
 }
 
 function buildActions(input: AssessmentInput): ActionItem[] {

@@ -12,7 +12,7 @@ const profileSchema = z.record(z.string(), z.unknown());
 export async function POST(request: Request) {
   const blocked = await guardMutation(request, "recommendations", { requests: 20, windowSeconds: 60 });
   if (blocked) return blocked;
-  if (!isSupabaseConfigured) return NextResponse.json({ mode: "demo", engineVersion: recommendationEngineVersion, results: [], message: "Connect Supabase and publish catalogue rules to run live recommendations." });
+  if (!isSupabaseConfigured) return NextResponse.json({ error: "Recommendation database is not configured." }, { status: 503 });
   const payload = await request.json().catch(() => ({}));
   const parsedProfile = profileSchema.safeParse(payload.profile ?? {});
   if (!parsedProfile.success) return NextResponse.json({ error: "Invalid recommendation profile." }, { status: 400 });

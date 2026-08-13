@@ -3,8 +3,8 @@ import { z } from "zod";
 import { fetchLiveScholarships } from "@/modules/catalogue/live-scholarships";
 
 const querySchema = z.object({
-  destination: z.enum(["suggest", "UK", "Germany", "Europe"]).default("suggest"),
-  nationality: z.enum(["Pakistan", "India", "Bangladesh"]).optional(),
+  destination: z.enum(["suggest", "UK", "Germany", "Europe", "US", "Canada", "Australia", "Japan", "Korea", "Singapore", "Malaysia", "World"]).default("suggest"),
+  nationality: z.string().trim().min(2).max(60).optional(),
   limit: z.coerce.number().int().min(1).max(30).default(12),
 });
 

@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
-import { fallbackCountries } from "@/modules/directory/fallback-data";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { repairTextTree } from "@/lib/text/repair-mojibake";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  if (!isSupabaseConfigured) return NextResponse.json({ mode: "curated-fallback", countries: fallbackCountries });
+  if (!isSupabaseConfigured) return NextResponse.json({ error: "Country intelligence database is not configured." }, { status: 503 });
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return NextResponse.json({ mode: "curated-fallback", countries: fallbackCountries });
+  if (!supabase) return NextResponse.json({ error: "Country intelligence is unavailable." }, { status: 503 });
 
   const [countriesResult, citiesResult, factsResult, sourcesResult] = await Promise.all([
     supabase.from("countries").select("*").eq("state", "published").order("name"),
@@ -17,7 +17,7 @@ export async function GET() {
     supabase.from("source_records").select("id,owner_name,canonical_url,last_verified_at,next_review_at").eq("status", "verified"),
   ]);
   const error = countriesResult.error || citiesResult.error || factsResult.error || sourcesResult.error;
-  if (error) return NextResponse.json({ mode: "curated-fallback", countries: fallbackCountries, warning: "Live country intelligence is temporarily unavailable." });
+  if (error) return NextResponse.json({ error: "Country intelligence could not be loaded." }, { status: 500 });
 
   const sources = new Map((sourcesResult.data ?? []).map((source) => [source.id, source]));
   const countries = (countriesResult.data ?? []).map((country) => ({
@@ -76,6 +76,6 @@ export async function GET() {
       };
     }),
   }));
-  return NextResponse.json({ mode: "live", countries, generatedAt: new Date().toISOString() });
+  return NextResponse.json(repairTextTree({ mode: "live", countries, generatedAt: new Date().toISOString() }));
 }
 

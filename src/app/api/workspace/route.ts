@@ -26,9 +26,8 @@ async function getAuthenticatedContext() {
 
 export async function GET() {
   const { supabase, user } = await getAuthenticatedContext();
-  if (!supabase || !user) {
-    return NextResponse.json({ mode: "demo", authenticated: false, data: null });
-  }
+  if (!supabase) return NextResponse.json({ error: "Workspace database is unavailable." }, { status: 503 });
+  if (!user) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
 
   const [profile, assessments, applications, tasks, documents, portfolios, notifications, writing, funding, offers] = await Promise.all([
     supabase.from("student_profiles").select("*").eq("user_id", user.id).maybeSingle(),
@@ -36,15 +35,18 @@ export async function GET() {
     supabase.from("applications").select("*").eq("user_id", user.id).order("deadline_at", { ascending: true }),
     supabase.from("tasks").select("*").eq("user_id", user.id).order("due_at", { ascending: true }),
     supabase.from("documents").select("id,name,category,status,version,metadata,created_at,updated_at").eq("user_id", user.id).neq("status", "deleted").order("updated_at", { ascending: false }),
-    supabase.from("portfolios").select("id,name,is_default,portfolio_items(id,entity_type,entity_id,notes,position)").eq("user_id", user.id),
+    supabase.from("portfolios").select("id,name,is_default,portfolio_items!portfolio_items_portfolio_owner_fk(id,entity_type,entity_id,notes,position)").eq("user_id", user.id),
     supabase.from("notifications").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(50),
     supabase.from("writing_items").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }),
     supabase.from("funding_scenarios").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }),
-    supabase.from("offers").select("*,applications(title,provider_name)").eq("user_id", user.id).order("created_at", { ascending: false }),
+    supabase.from("offers").select("*,applications!offers_application_owner_fk(title,provider_name)").eq("user_id", user.id).order("created_at", { ascending: false }),
   ]);
 
   const firstError = [profile, assessments, applications, tasks, documents, portfolios, notifications, writing, funding, offers].find((result) => result.error)?.error;
-  if (firstError) return NextResponse.json({ error: "Workspace data could not be loaded.", detail: firstError.message }, { status: 500 });
+  if (firstError) {
+    console.error("Workspace query failed", { code: firstError.code, message: firstError.message });
+    return NextResponse.json({ error: "Workspace data could not be loaded." }, { status: 500 });
+  }
 
   return NextResponse.json({
     mode: "live",
@@ -73,7 +75,8 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid workspace action.", issues: parsed.error.flatten() }, { status: 400 });
 
   const { supabase, user } = await getAuthenticatedContext();
-  if (!supabase || !user) return NextResponse.json({ error: "Sign in to save changes.", demo: true }, { status: 401 });
+  if (!supabase) return NextResponse.json({ error: "Workspace database is unavailable." }, { status: 503 });
+  if (!user) return NextResponse.json({ error: "Sign in to save changes." }, { status: 401 });
   const action = parsed.data;
 
   if (action.resource === "task") {
@@ -143,6 +146,6 @@ export async function POST(request: Request) {
 }
 
 function databaseResponse(result: { data: unknown; error: { message: string } | null }) {
-  if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
+  if (result.error) return NextResponse.json({ error: "The requested change could not be saved." }, { status: 500 });
   return NextResponse.json({ ok: true, data: result.data });
 }

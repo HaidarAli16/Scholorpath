@@ -7,4 +7,12 @@ out
 *.tsbuildinfo
 .doc-staging
 .codex-sheet-work
+/tmp/pdfs/
 *.inspect.ndjson
+.codex-dev-server*.log
+*.log
+tmp/vercel-public-project.json
+~$*.docx
+
+.vercel
+.env*

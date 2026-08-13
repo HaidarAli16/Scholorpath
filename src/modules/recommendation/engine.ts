@@ -63,7 +63,27 @@ export type RecommendationResult = {
 export const recommendationEngineVersion = "rules-4.0.0-country-institution-intelligence";
 export const recommendationWeights = Object.freeze({ eligibility: 30, fit: 20, funding: 12, deadline: 8, freshness: 7, evidence: 5, affordability: 8, visaFeasibility: 5, careerAlignment: 3, preference: 2 });
 
+export function normalizeGrade(gradeValue: number, gradeMaximum: number, nationality?: string | string[]): number {
+  if (gradeMaximum === 5 && nationality) {
+    const nat = Array.isArray(nationality) ? nationality.join(',') : nationality;
+    if (nat.includes('Germany') || nat.includes('DE')) {
+      return Math.round(((5.0 - gradeValue) / 4.0) * 100);
+    }
+  }
+  if (gradeMaximum === 4) return Math.round((gradeValue / 4) * 100);
+  if (gradeMaximum === 5) return Math.round((gradeValue / 5) * 100);
+  if (gradeMaximum === 10) return Math.round((gradeValue / 10) * 100);
+  if (gradeMaximum === 100) return gradeValue;
+
+  return Math.round((gradeValue / gradeMaximum) * 100);
+}
+
 function readPath(profile: Record<string, unknown>, path: string) {
+  if (path === 'normalizedGrade') {
+    const value = profile.gradeValue as number;
+    const max = profile.gradeMaximum as number;
+    if (value && max) return normalizeGrade(value, max, profile.nationalities as string[]);
+  }
   return path.split(".").reduce<unknown>((value, key) => value && typeof value === "object" ? (value as Record<string, unknown>)[key] : undefined, profile);
 }
 
@@ -106,8 +126,18 @@ function signalScore(signal: number | undefined, maximum: number, fallback: numb
 
 function preferenceScore(profile: Record<string, unknown>, countryCode?: string | null) {
   const preference = String(profile.destinationPreference ?? "suggest");
-  if (preference === "suggest") return 1;
-  const matches = preference === "UK" ? countryCode === "GB" : preference === "Germany" ? countryCode === "DE" : preference === "Europe" ? ["DE", "NL", "IE", "EU"].includes(countryCode ?? "") : false;
+  if (preference === "suggest" || preference === "World") return 1;
+  const matches = preference === "UK" ? countryCode === "GB"
+    : preference === "Germany" ? countryCode === "DE"
+    : preference === "Europe" ? ["DE", "NL", "IE", "EU"].includes(countryCode ?? "")
+    : preference === "US" ? countryCode === "US"
+    : preference === "Canada" ? countryCode === "CA"
+    : preference === "Australia" ? countryCode === "AU"
+    : preference === "Japan" ? countryCode === "JP"
+    : preference === "Korea" ? countryCode === "KR"
+    : preference === "Singapore" ? countryCode === "SG"
+    : preference === "Malaysia" ? countryCode === "MY"
+    : false;
   return matches ? recommendationWeights.preference : 0.5;
 }
 

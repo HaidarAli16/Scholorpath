@@ -30,7 +30,7 @@ export function getAssessmentStepIssue(draft: Draft, step: number): string | nul
     if (draft.completionStatus === "final_year" && (draft.graduationYear < currentYear || draft.graduationYear > currentYear + 2)) return "For a final-year degree, use the current year or the next two years.";
   }
   if (step === 7 && (!draft.intake || !(intakeOptions as readonly string[]).includes(draft.intake))) return "Choose an intake or select the flexible option.";
-  if (step === 8 && !draft.destinationPreference) return "Choose a destination preference or let ScholarPath suggest one.";
+  if (step === 8 && !draft.destinationPreference) return "Choose a destination preference or let CandidRoute suggest one.";
   if (step === 9 && !draft.fundingNeed) return "Choose the funding position that is true today.";
   if (step === 10) {
     if (!draft.budgetCurrency) return "Choose the currency used for your available budget.";

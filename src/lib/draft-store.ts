@@ -1,6 +1,6 @@
 import type { AssessmentInput } from "@/modules/assessment/types";
 
-const draftKey = "scholarpath.assessment.v2";
+const draftKey = "candidroute.assessment.v2";
 
 export function saveAssessmentDraft(draft: Partial<AssessmentInput>) {
   if (typeof window === "undefined") return;

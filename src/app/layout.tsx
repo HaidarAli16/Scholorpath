@@ -12,7 +12,7 @@ const urbanist = Urbanist({
 });
 
 export const metadata: Metadata = {
-  title: "ScholarPath — Build your admission pathway",
+  title: "CandidRoute — Build your admission pathway",
   description:
     "A transparent scholarship and international admissions execution platform for South Asian students.",
 };
