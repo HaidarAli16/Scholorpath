@@ -19,7 +19,8 @@ export async function refreshSupabaseSession(request: NextRequest) {
     },
   });
 
-  await supabase.auth.getUser();
+  // Verify the signed JWT locally (cached JWKS) instead of adding an Auth API
+  // round trip to every page, RSC payload and API request.
+  await supabase.auth.getClaims();
   return response;
 }
-

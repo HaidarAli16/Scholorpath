@@ -12,9 +12,23 @@ const urbanist = Urbanist({
 });
 
 export const metadata: Metadata = {
-  title: "CandidRoute — Build your admission pathway",
-  description:
-    "A transparent scholarship and international admissions execution platform for South Asian students.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://candidroute.vercel.app"),
+  title: { default: "CandidRoute — Build your admission pathway", template: "%s | CandidRoute" },
+  description: "A transparent scholarship and international admissions execution platform for South Asian students.",
+  applicationName: "CandidRoute",
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName: "CandidRoute",
+    title: "CandidRoute — Build your admission pathway",
+    description: "Get an evidence-backed international admissions pathway, opportunity matches and a practical action plan.",
+    url: "/",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "CandidRoute — Build your admission pathway",
+    description: "Evidence-backed international admissions guidance for South Asian students.",
+  },
 };
 
 export const viewport: Viewport = {
@@ -23,12 +37,6 @@ export const viewport: Viewport = {
   themeColor: "#f9fafb",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
-  return (
-    <html lang="en" className={urbanist.variable}>
-      <body>{children}</body>
-    </html>
-  );
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  return <html lang="en" className={urbanist.variable}><body>{children}</body></html>;
 }

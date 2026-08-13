@@ -45,18 +45,24 @@ export default async function PlatformRoute({ params }: { params: Promise<{ slug
   let initialAccess: ProductAccess = { plan: "free", active: false };
   if (isSupabaseConfigured) {
     const supabase = await createSupabaseServerClient();
-    const { data: { user } } = await supabase!.auth.getUser();
+    const { data: claimsData } = await supabase!.auth.getClaims();
+    const claims = claimsData?.claims;
+    const user = claims?.sub ? { id: claims.sub, email: typeof claims.email === "string" ? claims.email : undefined } : null;
     if (needsAccount && !user) redirect(`/auth?next=${encodeURIComponent(pathname)}`);
 
     if (user) {
-      bootstrap = await loadProductBootstrap(supabase!, user, activeModule);
-      const { data: entitlement } = await supabase!.from("subscription_entitlements").select("plan_code,status,current_period_end").eq("user_id", user.id).maybeSingle();
+      const [loadedBootstrap, entitlementResult, rolesResult] = await Promise.all([
+        loadProductBootstrap(supabase!, user, activeModule),
+        supabase!.from("subscription_entitlements").select("plan_code,status,current_period_end").eq("user_id", user.id).maybeSingle(),
+        supabase!.from("user_roles").select("role").eq("user_id", user.id),
+      ]);
+      bootstrap = loadedBootstrap;
+      const entitlement = entitlementResult.data;
       const periodValid = !entitlement?.current_period_end || new Date(entitlement.current_period_end).getTime() > Date.now();
       const proActive = entitlement?.plan_code === "pro" && ["active", "trialing"].includes(entitlement.status) && periodValid;
       initialAccess = { plan: proActive ? "pro" : "free", active: proActive };
-      const { data, error } = await supabase!.from("user_roles").select("role").eq("user_id", user.id);
-      if (error && (activeModule === "operations" || activeModule === "admin")) redirect("/access-denied?reason=role-check");
-      viewerRoles = (data ?? []).map((row) => row.role as AppRole);
+      if (rolesResult.error && (activeModule === "operations" || activeModule === "admin")) redirect("/access-denied?reason=role-check");
+      viewerRoles = (rolesResult.data ?? []).map((row) => row.role as AppRole);
       if (activeModule === "admin" && !canAccessAdmin(viewerRoles)) redirect("/access-denied?area=admin");
       if (activeModule === "operations" && !canAccessOperations(viewerRoles)) redirect("/access-denied?area=operations");
       if (activeModule === "operations" && viewerRoles.includes("admin")) redirect("/admin?tab=review");

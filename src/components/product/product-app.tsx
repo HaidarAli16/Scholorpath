@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import {
   AlertCircle,
@@ -53,17 +54,22 @@ import { applications, documents, opportunities, type Opportunity } from "@/modu
 import { useWorkspace, type WorkspacePayload } from "@/lib/use-workspace";
 import { useOpportunities, type OpportunitiesBootstrap } from "@/lib/use-opportunities";
 import { loadAssessmentHandoff, saveAssessmentHandoff, type AssessmentHandoff } from "@/lib/assessment-handoff";
-import { TaskCommandCenter } from "@/components/tasks/task-command-center";
-import { OpportunityDetail, SettingsCenter, StudentProfileCenter } from "@/components/product/frontend-completion";
 import { uploadStudentDocument } from "@/lib/upload-document";
-import { CountryIntelligenceCenter, InstitutionDirectoryCenter } from "@/components/directory/education-directory";
 import { useOperations } from "@/lib/use-operations";
-import { IngestionCommandCenter } from "@/components/admin/ingestion-command-center";
-import { RecommendationsPage, type RecommendationResponse } from "@/components/recommendations/recommendations-page";
+import type { RecommendationResponse } from "@/components/recommendations/recommendations-page";
 import { CountryFlag } from "@/components/country/country-flag";
 import { ContextHelp } from "@/components/ui/contextual-help";
 import type { DirectoryBootstrap } from "@/lib/use-education-directory";
 import { FREE_REPORT_LIMITS, hasProAccess, type ProductAccess } from "@/lib/product/entitlements";
+
+const TaskCommandCenter = dynamic(() => import("@/components/tasks/task-command-center").then((module) => module.TaskCommandCenter));
+const OpportunityDetail = dynamic(() => import("@/components/product/frontend-completion").then((module) => module.OpportunityDetail));
+const SettingsCenter = dynamic(() => import("@/components/product/frontend-completion").then((module) => module.SettingsCenter));
+const StudentProfileCenter = dynamic(() => import("@/components/product/frontend-completion").then((module) => module.StudentProfileCenter));
+const CountryIntelligenceCenter = dynamic(() => import("@/components/directory/education-directory").then((module) => module.CountryIntelligenceCenter));
+const InstitutionDirectoryCenter = dynamic(() => import("@/components/directory/education-directory").then((module) => module.InstitutionDirectoryCenter));
+const IngestionCommandCenter = dynamic(() => import("@/components/admin/ingestion-command-center").then((module) => module.IngestionCommandCenter));
+const RecommendationsPage = dynamic(() => import("@/components/recommendations/recommendations-page").then((module) => module.RecommendationsPage));
 
 const primaryNav = [
   { href: "/today", label: "Today", icon: Home },
@@ -99,7 +105,7 @@ function StudentProductApp({ module, viewerRoles = [], initialAccess = { plan: "
   const [assessmentHandoff, setAssessmentHandoff] = useState<AssessmentHandoff | null>(initialHandoff ?? null);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const claimStarted = useRef(false);
-  const backend = useWorkspace(initialWorkspace);
+  const backend = useWorkspace(initialWorkspace, module);
   const catalogue = useOpportunities(backend.data?.portfolios, initialOpportunities);
   const opportunityItems = catalogue.items;
   const workspaceName = backend.data?.profile?.first_name || assessmentHandoff?.profile.firstName || "Student";
@@ -173,7 +179,7 @@ function StudentProductApp({ module, viewerRoles = [], initialAccess = { plan: "
     <div className="product-app product-app--dashboard">
       <aside className={`product-rail ${mobileMenu ? "is-open" : ""}`}>
         <div className="product-rail__head">
-          <Link className="product-brand" href="/today">
+            <Link prefetch={false} className="product-brand" href="/today">
             <span className="product-brand__mark"><Sparkles size={16} /></span>
             <span>CandidRoute<small>Pathway intelligence</small></span>
           </Link>
@@ -203,7 +209,7 @@ function StudentProductApp({ module, viewerRoles = [], initialAccess = { plan: "
             <span className="mobile-product-mark"><Sparkles size={16} /></span>
             <div><small>CandidRoute</small><strong>{title}</strong></div>
           </div>
-          <nav className="dashboard-topnav" aria-label="Workspace sections"><Link className={topSection === "overview" ? "active" : ""} href="/today">Overview</Link><Link className={topSection === "pathways" ? "active" : ""} href="/discover">Pathways</Link><Link className={topSection === "applications" ? "active" : ""} href="/applications">Applications</Link><Link className={topSection === "plan" ? "active" : ""} href="/workspace">Plan</Link><Link className={topSection === "documents" ? "active" : ""} href="/workspace/documents">Documents</Link></nav>
+          <nav className="dashboard-topnav" aria-label="Workspace sections"><Link prefetch={false} className={topSection === "overview" ? "active" : ""} href="/today">Overview</Link><Link prefetch={false} className={topSection === "pathways" ? "active" : ""} href="/discover">Pathways</Link><Link prefetch={false} className={topSection === "applications" ? "active" : ""} href="/applications">Applications</Link><Link prefetch={false} className={topSection === "plan" ? "active" : ""} href="/workspace">Plan</Link><Link prefetch={false} className={topSection === "documents" ? "active" : ""} href="/workspace/documents">Documents</Link></nav>
           <div className="product-topbar__right">
             <button className="command-button" onClick={() => setCommandOpen(true)}><Search size={15} /><span>Search anything</span><kbd><Command size={10} /> K</kbd></button>
             <Link className="icon-control notification-control" href="/notifications" aria-label={unreadNotificationCount ? `${unreadNotificationCount} unread notifications` : "Notifications"}><Bell size={17} />{unreadNotificationCount > 0 && <i>{unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}</i>}</Link>
@@ -331,7 +337,7 @@ function DetailDrawer({ data, onClose, onPrimary }: { data: DetailData; onClose:
 }
 function NavLink({ href, label, icon: Icon, pathname }: { href: string; label: string; icon: typeof Home; pathname: string }) {
   const exact = href === "/workspace" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
-  return <Link className={exact ? "active" : ""} href={href} title={label} aria-label={label}><Icon size={17} /><span>{label}</span></Link>;
+  return <Link prefetch={false} className={exact ? "active" : ""} href={href} title={label} aria-label={label}><Icon size={17} /><span>{label}</span></Link>;
 }
 
 function PageIntro({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action?: React.ReactNode }) {

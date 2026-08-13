@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { guardMutation } from "@/lib/api/security";
+import { loadWorkspaceForModule } from "@/lib/product/server-bootstrap";
 
 const actionSchema = z.discriminatedUnion("resource", [
   z.object({ resource: z.literal("task"), action: z.enum(["create", "complete", "reopen"]), id: z.string().uuid().optional(), title: z.string().trim().min(2).max(180).optional(), dueAt: z.string().datetime().optional() }),
@@ -20,51 +21,21 @@ async function getAuthenticatedContext() {
   if (!isSupabaseConfigured) return { supabase: null, user: null };
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { supabase: null, user: null };
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data } = await supabase.auth.getClaims();
+  const claims = data?.claims;
+  const user = claims?.sub ? { id: claims.sub, email: typeof claims.email === "string" ? claims.email : undefined } : null;
   return { supabase, user };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const { supabase, user } = await getAuthenticatedContext();
   if (!supabase) return NextResponse.json({ error: "Workspace database is unavailable." }, { status: 503 });
   if (!user) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
 
-  const [profile, assessments, applications, tasks, documents, portfolios, notifications, writing, funding, offers] = await Promise.all([
-    supabase.from("student_profiles").select("*").eq("user_id", user.id).maybeSingle(),
-    supabase.from("assessments").select("id,status,completion_percent,answers,updated_at").eq("user_id", user.id).order("updated_at", { ascending: false }).limit(1),
-    supabase.from("applications").select("*").eq("user_id", user.id).order("deadline_at", { ascending: true }),
-    supabase.from("tasks").select("*").eq("user_id", user.id).order("due_at", { ascending: true }),
-    supabase.from("documents").select("id,name,category,status,version,metadata,created_at,updated_at").eq("user_id", user.id).neq("status", "deleted").order("updated_at", { ascending: false }),
-    supabase.from("portfolios").select("id,name,is_default,portfolio_items!portfolio_items_portfolio_owner_fk(id,entity_type,entity_id,notes,position)").eq("user_id", user.id),
-    supabase.from("notifications").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(50),
-    supabase.from("writing_items").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }),
-    supabase.from("funding_scenarios").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }),
-    supabase.from("offers").select("*,applications!offers_application_owner_fk(title,provider_name)").eq("user_id", user.id).order("created_at", { ascending: false }),
-  ]);
-
-  const firstError = [profile, assessments, applications, tasks, documents, portfolios, notifications, writing, funding, offers].find((result) => result.error)?.error;
-  if (firstError) {
-    console.error("Workspace query failed", { code: firstError.code, message: firstError.message });
-    return NextResponse.json({ error: "Workspace data could not be loaded." }, { status: 500 });
-  }
-
-  return NextResponse.json({
-    mode: "live",
-    authenticated: true,
-    user: { id: user.id, email: user.email },
-    data: {
-      profile: profile.data,
-      assessment: assessments.data?.[0] ?? null,
-      applications: applications.data ?? [],
-      tasks: tasks.data ?? [],
-      documents: documents.data ?? [],
-      portfolios: portfolios.data ?? [],
-      notifications: notifications.data ?? [],
-      writing: writing.data ?? [],
-      funding: funding.data ?? [],
-      offers: offers.data ?? [],
-    },
-  });
+  const section = new URL(request.url).searchParams.get("section") || "all";
+  const payload = await loadWorkspaceForModule(supabase, user, section);
+  if (payload.mode !== "live") return NextResponse.json({ error: "Workspace data could not be loaded." }, { status: 500 });
+  return NextResponse.json(payload);
 }
 
 export async function POST(request: Request) {

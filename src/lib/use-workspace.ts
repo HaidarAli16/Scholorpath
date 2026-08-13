@@ -13,14 +13,14 @@ export type WorkspacePayload = {
   data?: { profile?: { first_name?: string; nationality?: string; current_country?: string; preferred_currency?: string } | null; assessment?: { completion_percent?: number; answers?: Partial<AssessmentInput> } | null; tasks?: LiveTask[]; documents?: LiveDocument[]; applications?: unknown[]; portfolios?: unknown[]; notifications?: unknown[]; writing?: unknown[]; funding?: unknown[]; offers?: unknown[] } | null;
 };
 
-export function useWorkspace(initialWorkspace?: WorkspacePayload) {
+export function useWorkspace(initialWorkspace?: WorkspacePayload, section = "all") {
   const [workspace, setWorkspace] = useState<WorkspacePayload>(initialWorkspace ?? { mode: "loading", authenticated: false, data: null });
   const [loading, setLoading] = useState(!initialWorkspace);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
-      const response = await fetch("/api/workspace", { cache: "no-store" });
+      const response = await fetch(`/api/workspace?section=${encodeURIComponent(section)}`, { cache: "no-store" });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         const mode = response.status === 401 ? "unauthenticated" : "unavailable";
@@ -36,7 +36,7 @@ export function useWorkspace(initialWorkspace?: WorkspacePayload) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [section]);
 
   useEffect(() => {
     if (!initialWorkspace) void refresh();

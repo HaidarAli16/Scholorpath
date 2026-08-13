@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { SupabaseClient, User } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AssessmentHandoff } from "@/lib/assessment-handoff";
 import type { OpportunitiesBootstrap } from "@/lib/use-opportunities";
 import type { WorkspacePayload } from "@/lib/use-workspace";
@@ -17,22 +17,32 @@ export type ProductBootstrap = {
   directory?: DirectoryBootstrap;
 };
 
-export async function loadProductBootstrap(supabase: SupabaseClient, user: User, module?: string): Promise<ProductBootstrap> {
-  const [workspace, handoff, opportunities] = await Promise.all([
-    loadWorkspace(supabase, user),
-    loadHandoff(supabase, user.id),
-    loadOpportunities(supabase, user.id),
+type Viewer = { id: string; email?: string };
+
+export async function loadProductBootstrap(supabase: SupabaseClient, user: Viewer, module = "today"): Promise<ProductBootstrap> {
+  const needsHandoff = ["today", "report", "recommendations"].includes(module);
+  const needsOpportunities = ["today", "discover", "portfolio", "opportunity"].includes(module);
+  const needsRecommendations = module === "recommendations";
+  const directoryMode = module === "countries" ? "countries" : module === "institutions" ? "institutions" : module === "report" ? "both" : null;
+
+  const [workspace, handoff, opportunities, recommendations, directory] = await Promise.all([
+    loadWorkspaceForModule(supabase, user, module),
+    needsHandoff ? loadHandoff(supabase, user.id) : Promise.resolve(null),
+    needsOpportunities ? loadOpportunities(supabase, user.id) : Promise.resolve({ items: [], recommendations: [], mode: "live" } as OpportunitiesBootstrap),
+    needsRecommendations ? loadDetailedRecommendations(supabase, user.id) : Promise.resolve(null),
+    directoryMode ? loadDirectory(directoryMode) : Promise.resolve(undefined),
   ]);
-  const recommendations = await loadDetailedRecommendations(supabase, user.id);
-  const directory = module === "countries" || module === "institutions" || module === "report" ? await loadDirectory() : undefined;
   return { workspace, handoff, opportunities, recommendations, directory };
 }
 
-async function loadDirectory(): Promise<DirectoryBootstrap> {
-  const [countryResponse, institutionResponse] = await Promise.all([getCountries(), getInstitutions(new Request("http://candidroute.local/api/institutions"))]);
-  if (!countryResponse.ok || !institutionResponse.ok) return { countries: [], institutions: [], mode: "unavailable", warning: "Education directory could not be loaded." };
-  const countries = await countryResponse.json() as { countries?: DirectoryBootstrap["countries"] };
-  const institutions = await institutionResponse.json() as { institutions?: DirectoryBootstrap["institutions"] };
+async function loadDirectory(mode: "countries" | "institutions" | "both"): Promise<DirectoryBootstrap> {
+  const [countryResponse, institutionResponse] = await Promise.all([
+    mode !== "institutions" ? getCountries() : Promise.resolve(null),
+    mode !== "countries" ? getInstitutions(new Request("http://candidroute.local/api/institutions")) : Promise.resolve(null),
+  ]);
+  if (countryResponse && !countryResponse.ok || institutionResponse && !institutionResponse.ok) return { countries: [], institutions: [], mode: "unavailable", warning: "Education directory could not be loaded." };
+  const countries = countryResponse ? await countryResponse.json() as { countries?: DirectoryBootstrap["countries"] } : {};
+  const institutions = institutionResponse ? await institutionResponse.json() as { institutions?: DirectoryBootstrap["institutions"] } : {};
   return { countries: countries.countries ?? [], institutions: institutions.institutions ?? [], mode: "live" };
 }
 
@@ -55,33 +65,48 @@ async function loadDetailedRecommendations(supabase: SupabaseClient, userId: str
   return { run: { engine_version: run.engine_version, generated_at: run.generated_at, catalogue_version: run.catalogue_version }, profile: run.profile_snapshot, summary: { totalEvaluated: results.length, confirmed: results.filter((item) => item.state === "confirmed").length, conditional: results.filter((item) => item.state === "conditional").length, failed: results.filter((item) => item.state === "failed").length, averageScore: results.length ? results.reduce((sum, item) => sum + Number(item.final_score), 0) / results.length : 0 }, results };
 }
 
-async function loadWorkspace(supabase: SupabaseClient, user: User): Promise<WorkspacePayload> {
-  const [profile, assessments, applications, tasks, documents, portfolios, notifications, writing, funding, offers] = await Promise.all([
-    supabase.from("student_profiles").select("*").eq("user_id", user.id).maybeSingle(),
-    supabase.from("assessments").select("id,status,completion_percent,answers,updated_at").eq("user_id", user.id).order("updated_at", { ascending: false }).limit(1),
-    supabase.from("applications").select("*").eq("user_id", user.id).order("deadline_at", { ascending: true }),
-    supabase.from("tasks").select("*").eq("user_id", user.id).order("due_at", { ascending: true }),
-    supabase.from("documents").select("id,name,category,status,version,metadata,created_at,updated_at").eq("user_id", user.id).neq("status", "deleted").order("updated_at", { ascending: false }),
-    supabase.from("portfolios").select("id,name,is_default,portfolio_items!portfolio_items_portfolio_owner_fk(id,entity_type,entity_id,notes,position)").eq("user_id", user.id),
-    supabase.from("notifications").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(50),
-    supabase.from("writing_items").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }),
-    supabase.from("funding_scenarios").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }),
-    supabase.from("offers").select("*,applications!offers_application_owner_fk(title,provider_name)").eq("user_id", user.id).order("created_at", { ascending: false }),
-  ]);
-  const results = [profile, assessments, applications, tasks, documents, portfolios, notifications, writing, funding, offers];
+export async function loadWorkspaceForModule(supabase: SupabaseClient, user: Viewer, module: string): Promise<WorkspacePayload> {
+  const queries: Array<PromiseLike<{ data: unknown; error: unknown }>> = [
+    supabase.from("student_profiles").select("first_name,nationality,current_country,preferred_currency").eq("user_id", user.id).maybeSingle(),
+  ];
+  const keys = ["profile"];
+  const add = (key: string, query: PromiseLike<{ data: unknown; error: unknown }>) => { keys.push(key); queries.push(query); };
+
+  if (["today", "discover", "profile"].includes(module)) add("assessment", supabase.from("assessments").select("id,status,completion_percent,answers,updated_at").eq("user_id", user.id).order("updated_at", { ascending: false }).limit(1));
+  if (["discover", "portfolio", "opportunity"].includes(module)) add("portfolios", supabase.from("portfolios").select("id,name,is_default,portfolio_items!portfolio_items_portfolio_owner_fk(id,entity_type,entity_id,notes,position)").eq("user_id", user.id));
+  if (["applications", "offers"].includes(module)) add("applications", supabase.from("applications").select("*").eq("user_id", user.id).order("deadline_at", { ascending: true }));
+  if (module === "documents") add("documents", supabase.from("documents").select("id,name,category,status,version,metadata,created_at,updated_at").eq("user_id", user.id).neq("status", "deleted").order("updated_at", { ascending: false }));
+  if (module === "writing") add("writing", supabase.from("writing_items").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }));
+  if (module === "funding") add("funding", supabase.from("funding_scenarios").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }));
+  if (module === "offers") add("offers", supabase.from("offers").select("*,applications!offers_application_owner_fk(title,provider_name)").eq("user_id", user.id).order("created_at", { ascending: false }));
+  if (module === "all") {
+    add("assessment", supabase.from("assessments").select("id,status,completion_percent,answers,updated_at").eq("user_id", user.id).order("updated_at", { ascending: false }).limit(1));
+    add("applications", supabase.from("applications").select("*").eq("user_id", user.id).order("deadline_at", { ascending: true }));
+    add("tasks", supabase.from("tasks").select("*").eq("user_id", user.id).order("due_at", { ascending: true }));
+    add("documents", supabase.from("documents").select("id,name,category,status,version,metadata,created_at,updated_at").eq("user_id", user.id).neq("status", "deleted").order("updated_at", { ascending: false }));
+    add("portfolios", supabase.from("portfolios").select("id,name,is_default,portfolio_items!portfolio_items_portfolio_owner_fk(id,entity_type,entity_id,notes,position)").eq("user_id", user.id));
+    add("notifications", supabase.from("notifications").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(50));
+    add("writing", supabase.from("writing_items").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }));
+    add("funding", supabase.from("funding_scenarios").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }));
+    add("offers", supabase.from("offers").select("*,applications!offers_application_owner_fk(title,provider_name)").eq("user_id", user.id).order("created_at", { ascending: false }));
+  }
+
+  const results = await Promise.all(queries);
   if (results.some((result) => result.error)) return { mode: "unavailable", authenticated: true, user: { id: user.id, email: user.email }, data: null };
+  const values = Object.fromEntries(results.map((result, index) => [keys[index], result.data])) as Record<string, unknown>;
+  const assessmentRows = values.assessment as Array<Record<string, unknown>> | undefined;
   return {
     mode: "live",
     authenticated: true,
     user: { id: user.id, email: user.email },
     data: {
-      profile: profile.data,
-      assessment: assessments.data?.[0] ?? null,
-      applications: applications.data ?? [], tasks: tasks.data ?? [], documents: documents.data ?? [],
-      portfolios: portfolios.data ?? [], notifications: notifications.data ?? [], writing: writing.data ?? [],
-      funding: funding.data ?? [], offers: offers.data ?? [],
+      profile: values.profile,
+      assessment: assessmentRows?.[0] ?? null,
+      applications: values.applications ?? [], tasks: values.tasks ?? [], documents: values.documents ?? [],
+      portfolios: values.portfolios ?? [], notifications: values.notifications ?? [], writing: values.writing ?? [],
+      funding: values.funding ?? [], offers: values.offers ?? [],
     },
-  } as WorkspacePayload;
+  } as unknown as WorkspacePayload;
 }
 
 async function loadHandoff(supabase: SupabaseClient, userId: string): Promise<AssessmentHandoff | null> {

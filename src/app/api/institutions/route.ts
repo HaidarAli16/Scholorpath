@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { unstable_cache } from "next/cache";
 import { z } from "zod";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabasePublicClient } from "@/lib/supabase/public";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { repairTextTree } from "@/lib/text/repair-mojibake";
 
@@ -12,16 +13,15 @@ const querySchema = z.object({
   q: z.string().trim().max(100).optional(),
 });
 
-export async function GET(request: Request) {
-  const parsed = querySchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));
-  if (!parsed.success) return NextResponse.json({ error: "Invalid institution query." }, { status: 400 });
-  if (!isSupabaseConfigured) return NextResponse.json({ error: "Institution directory database is not configured." }, { status: 503 });
-  const supabase = await createSupabaseServerClient();
-  if (!supabase) return NextResponse.json({ error: "Institution directory is unavailable." }, { status: 503 });
+type InstitutionQuery = z.infer<typeof querySchema>;
+
+const loadInstitutions = unstable_cache(async (query: InstitutionQuery) => {
+  const supabase = createSupabasePublicClient();
+  if (!supabase) throw new Error("Institution directory is unavailable.");
 
   let institutionQuery = supabase.from("institutions").select("*").eq("state", "published").order("official_name");
-  if (parsed.data.country) institutionQuery = institutionQuery.eq("country_code", parsed.data.country.toUpperCase());
-  if (parsed.data.q) institutionQuery = institutionQuery.ilike("official_name", `%${parsed.data.q.replaceAll("%", "\\%").replaceAll("_", "\\_")}%`);
+  if (query.country) institutionQuery = institutionQuery.eq("country_code", query.country.toUpperCase());
+  if (query.q) institutionQuery = institutionQuery.ilike("official_name", `%${query.q.replaceAll("%", "\\%").replaceAll("_", "\\_")}%`);
   const [institutionsResult, countriesResult, citiesResult, campusesResult, rankingsResult, equivalenciesResult, requirementsResult, programmesResult, sourcesResult] = await Promise.all([
     institutionQuery,
     supabase.from("countries").select("code,name,flag_emoji").eq("state", "published"),
@@ -34,11 +34,19 @@ export async function GET(request: Request) {
     supabase.from("source_records").select("id,owner_name,canonical_url,last_verified_at,next_review_at").eq("status", "verified"),
   ]);
   const results = [institutionsResult, countriesResult, citiesResult, campusesResult, rankingsResult, equivalenciesResult, requirementsResult, programmesResult, sourcesResult];
-  if (results.some((result) => result.error)) return NextResponse.json({ error: "Institution directory could not be loaded." }, { status: 500 });
+  const firstError = results.find((result) => result.error)?.error;
+  if (firstError) throw firstError;
 
   const countries = new Map((countriesResult.data ?? []).map((country) => [country.code, country]));
   const cities = new Map((citiesResult.data ?? []).map((city) => [city.id, city.name]));
   const sources = new Map((sourcesResult.data ?? []).map((source) => [source.id, source]));
+  const campusCounts = new Map<string, number>();
+  for (const campus of campusesResult.data ?? []) campusCounts.set(campus.institution_id, (campusCounts.get(campus.institution_id) ?? 0) + 1);
+  const programmeCounts = new Map<string, number>();
+  for (const programme of programmesResult.data ?? []) programmeCounts.set(programme.institution_id, (programmeCounts.get(programme.institution_id) ?? 0) + 1);
+  const rankingsByInstitution = Map.groupBy(rankingsResult.data ?? [], (item) => item.institution_id);
+  const equivalenciesByInstitution = Map.groupBy((equivalenciesResult.data ?? []).filter((item) => !query.origin || item.origin_country === query.origin), (item) => item.institution_id);
+  const requirementsByInstitution = Map.groupBy((requirementsResult.data ?? []).filter((item) => !query.origin || !item.origin_country || item.origin_country === query.origin), (item) => item.institution_id);
   const sourceShape = (sourceId: string | null) => {
     const source = sourceId ? sources.get(sourceId) : null;
     return source ? { label: source.owner_name, url: source.canonical_url, verifiedAt: source.last_verified_at, nextReviewAt: source.next_review_at } : null;
@@ -63,13 +71,25 @@ export async function GET(request: Request) {
       summary: institution.summary,
       lastVerifiedAt: institution.last_verified_at,
       nextReviewAt: institution.next_review_at,
-      campusCount: (campusesResult.data ?? []).filter((campus) => campus.institution_id === institution.id).length,
-      programmeCount: (programmesResult.data ?? []).filter((programme) => programme.institution_id === institution.id).length,
-      rankings: (rankingsResult.data ?? []).filter((ranking) => ranking.institution_id === institution.id).map((ranking) => ({ id: ranking.id, publisher: ranking.publisher, name: ranking.ranking_name, year: ranking.edition_year, rankLabel: ranking.rank_label, subject: ranking.subject, source: sourceShape(ranking.source_id) })),
-      equivalencies: (equivalenciesResult.data ?? []).filter((item) => item.institution_id === institution.id && (!parsed.data.origin || item.origin_country === parsed.data.origin)).map((item) => ({ id: item.id, originCountry: item.origin_country, studyLevel: item.study_level, qualification: item.qualification_pattern, minimumResult: item.minimum_result, state: item.evaluation_state, notes: item.notes, source: sourceShape(item.source_id) })),
-      requirements: (requirementsResult.data ?? []).filter((item) => item.institution_id === institution.id && (!parsed.data.origin || !item.origin_country || item.origin_country === parsed.data.origin)).map((item) => ({ id: item.id, type: item.requirement_type, label: item.label, description: item.description, required: item.required, originCountry: item.origin_country, studyLevel: item.study_level, source: sourceShape(item.source_id) })),
+      campusCount: campusCounts.get(institution.id) ?? 0,
+      programmeCount: programmeCounts.get(institution.id) ?? 0,
+      rankings: (rankingsByInstitution.get(institution.id) ?? []).map((ranking) => ({ id: ranking.id, publisher: ranking.publisher, name: ranking.ranking_name, year: ranking.edition_year, rankLabel: ranking.rank_label, subject: ranking.subject, source: sourceShape(ranking.source_id) })),
+      equivalencies: (equivalenciesByInstitution.get(institution.id) ?? []).map((item) => ({ id: item.id, originCountry: item.origin_country, studyLevel: item.study_level, qualification: item.qualification_pattern, minimumResult: item.minimum_result, state: item.evaluation_state, notes: item.notes, source: sourceShape(item.source_id) })),
+      requirements: (requirementsByInstitution.get(institution.id) ?? []).map((item) => ({ id: item.id, type: item.requirement_type, label: item.label, description: item.description, required: item.required, originCountry: item.origin_country, studyLevel: item.study_level, source: sourceShape(item.source_id) })),
     };
   });
-  return NextResponse.json(repairTextTree({ mode: "live", institutions, generatedAt: new Date().toISOString() }));
+  return repairTextTree({ mode: "live", institutions, generatedAt: new Date().toISOString() });
+}, ["published-institution-directory-v1"], { revalidate: 3600, tags: ["institution-directory"] });
+
+export async function GET(request: Request) {
+  const parsed = querySchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));
+  if (!parsed.success) return NextResponse.json({ error: "Invalid institution query." }, { status: 400 });
+  if (!isSupabaseConfigured) return NextResponse.json({ error: "Institution directory database is not configured." }, { status: 503 });
+  try {
+    const result = await loadInstitutions(parsed.data);
+    return NextResponse.json(result, { headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" } });
+  } catch {
+    return NextResponse.json({ error: "Institution directory could not be loaded." }, { status: 500 });
+  }
 }
 

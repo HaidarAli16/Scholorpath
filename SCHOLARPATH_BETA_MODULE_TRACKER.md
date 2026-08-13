@@ -6,17 +6,29 @@ The 14 August beta framing has been removed. Current product truth now lives in 
 
 ## Immediate status
 
-Fresh local verification on 13 August 2026: typecheck, all 25 automated tests and the production build pass. Vercel is publicly reachable, Supabase migration parity is 33/33, and the entitlement schema is live. The current worktree still needs commit, push and final deployment smoke testing.
+Fresh verification on 13 August 2026: typecheck, lint, all 25 automated tests and the production build pass. Supabase migration parity is 35/35, schema lint is clean, read-path indexes are live, and the database reports 100% table/index cache-hit ratios. The optimized Vercel deployment and final smoke test are the remaining actions in this pass.
 
 | Area | Status | One-line truth |
 |---|---|---|
 | UI shell | Partial | All 29 annotated UX defects are closed at the target desktop viewport; cross-device and mobile acceptance remain. |
-| Supabase backend | Partial | Live schema is reachable; migration parity is 33/33, the entitlement table has RLS, schema lint is clean and Advisor access is verified. Two-account acceptance and remaining Advisor warnings remain. |
+| Supabase backend | Partial | Live schema is reachable; migration parity is 35/35, route-specific indexes are live, schema lint is clean and database cache-hit ratios are 100%. Two-account acceptance and remaining Advisor warnings remain. |
 | Opportunity ingestion | Partial | Official-source pipeline exists, but worldwide coverage needs source packs, parsers and review. |
 | Recommendation engine | Partial | The engine direction is correct, but it cannot be trusted until published catalogue coverage and golden-profile tests exist. |
 | Country intelligence | Partial | Architecture/UI direction exists; complete country facts are still missing. |
 | Institution directory | Partial | Database/UI direction exists; production university, campus, course and ranking data are still missing. |
-| Deployment | Partial | `candidroute.vercel.app` is public and local checks pass; final deployment of this worktree, monitoring and release smoke test remain. |
+| Deployment | Partial | `candidroute.vercel.app` is public; compute is configured for Singapore beside the ap-southeast-1 database, with final optimized deployment and smoke test pending. |
+
+## Performance engineering pass — 13 August 2026
+
+- Done: authenticated pages now load only their own workspace slice instead of ten unrelated student tables on every route.
+- Done: profile bootstrap, entitlement and role checks run concurrently; report, catalogue, recommendations and directories load only where needed.
+- Done: middleware and protected page identity checks use verified JWT claims, removing avoidable Auth API round trips from normal navigation.
+- Done: public catalogue, country and institution data use request-independent RLS clients plus server/CDN stale-while-revalidate caching.
+- Done: directory shaping uses grouped lookups instead of repeated full-array scans; heavy route modules are split into lazy client chunks and expensive navigation prefetch is disabled.
+- Done: assessment no longer blocks on third-party discovery or recommendation persistence; the validated report returns first and enrichment runs post-response.
+- Done live: two performance migrations add useful ordered/partial indexes and remove redundant indexes; remote parity is 35/35 and linked schema lint reports no errors.
+- Done: Vercel compute is pinned to `sin1`, colocated with the Supabase `ap-southeast-1` project; Fluid Compute is enabled.
+- Verified locally: warm public data responses are 4–5 ms, uncached assessment response is under 0.8 seconds, and the production build reports 122 kB first-load JS for the public assessment and 209 kB for the authenticated product shell.
 
 ## Current blockers
 

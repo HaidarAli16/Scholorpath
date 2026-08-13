@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { unstable_cache } from "next/cache";
+import { createSupabasePublicClient } from "@/lib/supabase/public";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { repairTextTree } from "@/lib/text/repair-mojibake";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  if (!isSupabaseConfigured) return NextResponse.json({ error: "Country intelligence database is not configured." }, { status: 503 });
-  const supabase = await createSupabaseServerClient();
-  if (!supabase) return NextResponse.json({ error: "Country intelligence is unavailable." }, { status: 503 });
+const loadCountries = unstable_cache(async () => {
+  const supabase = createSupabasePublicClient();
+  if (!supabase) throw new Error("Country intelligence is unavailable.");
 
   const [countriesResult, citiesResult, factsResult, sourcesResult] = await Promise.all([
     supabase.from("countries").select("*").eq("state", "published").order("name"),
@@ -17,9 +17,11 @@ export async function GET() {
     supabase.from("source_records").select("id,owner_name,canonical_url,last_verified_at,next_review_at").eq("status", "verified"),
   ]);
   const error = countriesResult.error || citiesResult.error || factsResult.error || sourcesResult.error;
-  if (error) return NextResponse.json({ error: "Country intelligence could not be loaded." }, { status: 500 });
+  if (error) throw error;
 
   const sources = new Map((sourcesResult.data ?? []).map((source) => [source.id, source]));
+  const citiesByCountry = Map.groupBy(citiesResult.data ?? [], (city) => city.country_code);
+  const factsByCountry = Map.groupBy(factsResult.data ?? [], (fact) => fact.country_code);
   const countries = (countriesResult.data ?? []).map((country) => ({
     code: country.code,
     slug: country.slug,
@@ -49,7 +51,7 @@ export async function GET() {
     visaUncertainty: country.visa_uncertainty,
     lastVerifiedAt: country.last_verified_at,
     nextReviewAt: country.next_review_at,
-    cities: (citiesResult.data ?? []).filter((city) => city.country_code === country.code).map((city) => ({
+    cities: (citiesByCountry.get(country.code) ?? []).map((city) => ({
       id: city.id,
       name: city.name,
       monthlyCostLow: Number(city.monthly_cost_low ?? 0),
@@ -63,7 +65,7 @@ export async function GET() {
       community: city.community_summary,
       confidence: city.confidence,
     })),
-    facts: (factsResult.data ?? []).filter((fact) => fact.country_code === country.code).map((fact) => {
+    facts: (factsByCountry.get(country.code) ?? []).map((fact) => {
       const source = sources.get(fact.source_id);
       return {
         id: fact.id,
@@ -76,6 +78,16 @@ export async function GET() {
       };
     }),
   }));
-  return NextResponse.json(repairTextTree({ mode: "live", countries, generatedAt: new Date().toISOString() }));
+  return repairTextTree({ mode: "live", countries, generatedAt: new Date().toISOString() });
+}, ["published-country-intelligence-v1"], { revalidate: 3600, tags: ["country-intelligence"] });
+
+export async function GET() {
+  if (!isSupabaseConfigured) return NextResponse.json({ error: "Country intelligence database is not configured." }, { status: 503 });
+  try {
+    const result = await loadCountries();
+    return NextResponse.json(result, { headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" } });
+  } catch {
+    return NextResponse.json({ error: "Country intelligence could not be loaded." }, { status: 500 });
+  }
 }
 

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { createHash, randomUUID } from "node:crypto";
 import { generateAssessmentReport } from "@/modules/assessment/engine";
 import { assessmentInputSchema } from "@/modules/assessment/schema";
@@ -7,7 +7,6 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { guardMutation } from "@/lib/api/security";
 import { evaluateCatalogue } from "@/modules/recommendation/service";
-import { fetchLiveScholarships } from "@/modules/catalogue/live-scholarships";
 
 export async function POST(request: Request) {
   const blocked = await guardMutation(request, "assessment", { requests: 12, windowSeconds: 60 });
@@ -20,11 +19,10 @@ export async function POST(request: Request) {
   }
 
   const report = generateAssessmentReport(parsed.data);
-  const liveDiscovery = await fetchLiveScholarships(parsed.data, 6).catch(() => null);
-  report.liveScholarships = liveDiscovery?.items ?? [];
-  report.liveDataNotice = report.liveScholarships.length
-    ? "Live discovery results are third-party leads, not verified eligibility. CandidRoute will only promote them after an official source, cycle and deadline are attached."
-    : "The live discovery feed was unavailable. Your pathway report was generated from validated profile data and can be refreshed later.";
+  // Third-party discovery is intentionally kept out of the assessment's critical
+  // path. It is loaded independently on Discover and never blocks a report.
+  report.liveScholarships = [];
+  report.liveDataNotice = "Your report uses validated profile data and the reviewed CandidRoute catalogue. Third-party discovery leads load separately and never determine eligibility.";
   if (isSupabaseConfigured) {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase!.auth.getUser();
@@ -55,20 +53,20 @@ export async function POST(request: Request) {
       });
       if (error) return NextResponse.json({ error: "Your assessment could not be saved atomically." }, { status: 500 });
       const assessmentId = (submission as { assessment_id?: string } | null)?.assessment_id ?? null;
-      let intelligenceRunId: string | null = null;
       if (assessmentId) {
-        const { data: storedIntelligence } = await supabase!.rpc("store_intelligence_report", {
-          p_assessment_id: assessmentId,
-          p_report: report.intelligence,
+        after(async () => {
+          await supabase!.rpc("store_intelligence_report", {
+            p_assessment_id: assessmentId,
+            p_report: report.intelligence,
+          });
+          await evaluateCatalogue(supabase!, parsed.data as unknown as Record<string, unknown>, {
+            userId: user.id,
+            assessmentId,
+            persistenceClient: createSupabaseAdminClient(),
+          }).catch(() => undefined);
         });
-        intelligenceRunId = typeof storedIntelligence === "string" ? storedIntelligence : null;
       }
-      try {
-        const recommendation = await evaluateCatalogue(supabase!, parsed.data as unknown as Record<string, unknown>, { userId: user.id, assessmentId, persistenceClient: createSupabaseAdminClient() });
-        return NextResponse.json({ ...report, intelligencePersistence: { status: intelligenceRunId ? "ready" : "pending", runId: intelligenceRunId }, recommendation: { status: "ready", runId: recommendation.runId, resultCount: recommendation.results.length, results: recommendation.results } });
-      } catch {
-        return NextResponse.json({ ...report, intelligencePersistence: { status: intelligenceRunId ? "ready" : "pending", runId: intelligenceRunId }, recommendation: { status: "queued", resultCount: 0 } });
-      }
+      return NextResponse.json({ ...report, intelligencePersistence: { status: "pending", runId: null }, recommendation: { status: assessmentId ? "queued" : "unavailable", resultCount: 0 } });
     }
   }
 
