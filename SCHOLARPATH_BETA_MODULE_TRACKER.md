@@ -6,7 +6,7 @@ The 14 August beta framing has been removed. Current product truth now lives in 
 
 ## Immediate status
 
-Fresh verification on 13 August 2026: typecheck, lint, all 25 automated tests and the production build pass. Supabase migration parity is 35/35, schema lint is clean, read-path indexes are live, and the database reports 100% table/index cache-hit ratios. The optimized Vercel deployment and final smoke test are the remaining actions in this pass.
+Fresh verification on 13 August 2026: typecheck, lint, all 25 automated tests and the production build pass. Supabase migration parity is 35/35, schema lint is clean, read-path indexes are live, and the database reports 100% table/index cache-hit ratios. Optimized commit `77e1f14` is deployed to production as `dpl_BjF9TGGvUdpRPxpb8xvMkpc5VVSQ`; public smoke tests pass.
 
 | Area | Status | One-line truth |
 |---|---|---|
@@ -16,7 +16,7 @@ Fresh verification on 13 August 2026: typecheck, lint, all 25 automated tests an
 | Recommendation engine | Partial | The engine direction is correct, but it cannot be trusted until published catalogue coverage and golden-profile tests exist. |
 | Country intelligence | Partial | Architecture/UI direction exists; complete country facts are still missing. |
 | Institution directory | Partial | Database/UI direction exists; production university, campus, course and ranking data are still missing. |
-| Deployment | Partial | `candidroute.vercel.app` is public; compute is configured for Singapore beside the ap-southeast-1 database, with final optimized deployment and smoke test pending. |
+| Deployment | Done | Optimized production deployment is READY and public at `candidroute-taatuftech-1331s-projects.vercel.app`; home, robots, sitemap and core public APIs return 200. |
 
 ## Performance engineering pass — 13 August 2026
 
@@ -27,7 +27,8 @@ Fresh verification on 13 August 2026: typecheck, lint, all 25 automated tests an
 - Done: directory shaping uses grouped lookups instead of repeated full-array scans; heavy route modules are split into lazy client chunks and expensive navigation prefetch is disabled.
 - Done: assessment no longer blocks on third-party discovery or recommendation persistence; the validated report returns first and enrichment runs post-response.
 - Done live: two performance migrations add useful ordered/partial indexes and remove redundant indexes; remote parity is 35/35 and linked schema lint reports no errors.
-- Done: Vercel compute is pinned to `sin1`, colocated with the Supabase `ap-southeast-1` project; Fluid Compute is enabled.
+- Done in code: all 34 dynamic server entry points and `vercel.json` request `sin1`; Fluid Compute is enabled. Vercel currently reports `iad1` execution for this project, so regional placement remains a platform/project-setting follow-up rather than an application-code gap.
+- Verified live: warm responses measured 87-111 ms for robots, sitemap, countries and institutions; catalogue was 318 ms and uncached auth status 375 ms. Public APIs return cache HIT after the first request.
 - Verified locally: warm public data responses are 4–5 ms, uncached assessment response is under 0.8 seconds, and the production build reports 122 kB first-load JS for the public assessment and 209 kB for the authenticated product shell.
 
 ## Current blockers
@@ -36,7 +37,7 @@ Fresh verification on 13 August 2026: typecheck, lint, all 25 automated tests an
 2. Review and publish enough current opportunities for real recommendations.
 3. Prove signed-in student and admin flows in browser.
 4. Complete Supabase security hardening.
-5. Deploy and monitor production on Vercel.
+5. Monitor production latency and move the Vercel project-level function region to Singapore if the account exposes regional controls.
 
 ## Production hardening — 9 August 2026
 
