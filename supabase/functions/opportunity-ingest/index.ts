@@ -1,6 +1,6 @@
 // @ts-nocheck -- This Deno entrypoint is type-checked by the Supabase function bundler.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "npm:@supabase/supabase-js@2.111.0";
 
 type Json = Record<string, unknown>;
 type Run = { id: string; source_id: string; adapter_id: string; status: string };
@@ -64,8 +64,12 @@ function validateDiscoveryTarget(raw: string) {
 
 function removeTrackingParameters(url: URL) {
   for (const key of [...url.searchParams.keys()]) {
-    if (/^(?:utm_.+|_gl|fbclid|gclid|msclkid|mc_cid|mc_eid)$/i.test(key)) url.searchParams.delete(key);
+    if (/^(?:utm_.+|_gl|fbclid|gclid|msclkid|mc_cid|mc_eid|ref|source|campaign|session(?:id)?)$/i.test(key)) url.searchParams.delete(key);
   }
+  url.hostname = url.hostname.toLowerCase();
+  url.pathname = url.pathname.replace(/\/{2,}/g, "/");
+  if (url.pathname.length > 1) url.pathname = url.pathname.replace(/\/+$/, "");
+  url.hash = "";
   url.searchParams.sort();
   return url;
 }
@@ -133,8 +137,8 @@ function tagText(html: string, tag: string) {
 
 function canonicalLink(html: string, fallback: string) {
   const match = html.match(/<link[^>]+rel=["'][^"']*canonical[^"']*["'][^>]+href=["']([^"']+)["']/i) || html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["'][^"']*canonical/i);
-  if (!match) return fallback;
-  try { return new URL(match[1], fallback).toString(); } catch { return fallback; }
+  try { return removeTrackingParameters(new URL(match?.[1] || fallback, fallback)).toString(); }
+  catch { return removeTrackingParameters(new URL(fallback)).toString(); }
 }
 
 function extractDates(text: string) {

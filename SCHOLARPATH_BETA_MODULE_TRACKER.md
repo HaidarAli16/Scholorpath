@@ -6,16 +6,16 @@ The 14 August beta framing has been removed. Current product truth now lives in 
 
 ## Immediate status
 
-Fresh verification on 14 August 2026: typecheck, lint, all 26 automated tests and the production build pass. Git is clean and synchronized with `origin/main`. Supabase migration parity is 36/36, linked schema lint is clean, and the protected admin control-plane schema is live. The stable production URL is `https://candidroute.vercel.app`.
+Fresh verification on 14 August 2026: typecheck, lint, all 29 automated tests and the production build pass. Supabase migration parity is 42/42, linked schema lint is clean, and the protected admin control-plane schema is live. The stable production URL is `https://candidroute.vercel.app`.
 
 | Area | Status | One-line truth |
 |---|---|---|
 | UI shell | Partial | All 29 annotated UX defects are closed at the target desktop viewport; cross-device and mobile acceptance remain. |
 | Supabase backend | Partial | Live schema is reachable; migration parity is 36/36 and linked schema lint is clean. Advisors report no errors but 51 warnings; two-student isolation and staff-role acceptance remain. |
-| Opportunity ingestion | Partial | 301 sources and 275 scheduled assignments now exist; two secondary discovery feeds resolve to 150 official scholarship sources, while review and publication remain the bottleneck. |
+| Opportunity ingestion | Partial | 405 source records exist; five duplicate URL aliases are archived, active normalized URL duplicates are zero, and review/publication remain the bottleneck. |
 | Recommendation engine | Partial | The engine direction is correct, but it cannot be trusted until published catalogue coverage and golden-profile tests exist. |
 | Country intelligence | Partial | Architecture/UI direction exists; complete country facts are still missing. |
-| Institution directory | Partial | Database/UI direction exists; production university, campus, course and ranking data are still missing. |
+| Institution directory | Partial | All 12 current institutions are uniquely matched to ROR identities with daily enrichment; broader university, campus, course and ranking coverage is still missing. |
 | Deployment | Done | Optimized production is public at `candidroute.vercel.app`; home, auth, catalogue, country, institution and live-scholarship checks return 200, while anonymous admin access correctly returns 401. |
 | Admin and CMS | Partial | Core access, plan, education, ingestion, support, audit and settings controls exist. Authenticated visual acceptance, bulk review and relational editors for cities/facts/campuses/rankings/equivalencies/requirements/intakes/rules remain. |
 
@@ -25,7 +25,7 @@ Fresh verification on 14 August 2026: typecheck, lint, all 26 automated tests an
 |---|---|---|
 | Git | Done | Clean working tree; local `main` matches `origin/main`. |
 | Code quality | Done | Typecheck, lint, 26/26 tests and production build pass. |
-| Supabase migrations | Done | 36 local and 36 remote migrations; zero mismatch; linked schema lint clean. |
+| Supabase migrations | Done | 42 local and 42 remote migrations; zero mismatch; linked schema lint clean. |
 | Production HTTP | Done | `/`, `/auth`, auth status, catalogue, countries, institutions and live scholarships return 200; anonymous admin API returns 401. |
 | Published catalogue | Blocked for release quality | Only 2 release-ready programmes and 3 release-ready scholarships are published. The release gate requires at least 10 current reviewed opportunities. |
 | Ingestion health | Partial | 301 sources and 275 assignments exist, 271 enabled. The new daily discovery rollout is draining 94 queued runs; first acceptance produced 86 new official URLs and 11 structured scholarship candidates. |
@@ -96,6 +96,15 @@ Admin acceptance correction: generic sign-in and OAuth callback redirects are no
 - Done live: official pages without a deadline remain eligible for review with the explicit `deadline_unresolved` state; student UI displays **Deadline not confirmed**, and the official source is checked again daily.
 - Verified live: the first sample created 86 new official sources and 11 structured scholarship candidates; eight Opportunities Circle routes and three Scholarpath.world routes completed the official-page stage, with one correct robots block.
 - Remaining: drain the queued source backlog, enrich country/eligibility fields, approve strong records and prove review-to-publication-to-recommendation end to end.
+
+## API enrichment and deduplication — 14 August 2026
+
+- Decision: CareerOneStop is the selected US scholarship API after its free user ID/token is supplied; ROR v2 is the immediate global institution-identity provider. College Scorecard is reserved for US cost/outcome facts, not scholarship truth.
+- Done live: the `institution-enrich` Edge Function and daily cron are deployed; all 12 current institutions matched a unique active ROR education record, with zero ambiguous, failed or duplicate matches.
+- Done live: ROR enriches identity, official domain, location and external identifiers only. It cannot create admission, eligibility, funding, ranking or visa claims.
+- Done live: scholarship discovery URLs are normalized before insertion; tracking/session parameters, fragments, duplicate slashes and trailing slashes no longer create new active sources.
+- Done live: five pre-existing URL aliases were archived without deleting their historical evidence. Active normalized source duplicate groups are now zero.
+- Remaining external credential: CareerOneStop registration is required before its US scholarship feed can be enabled; its API does not permit anonymous calls.
 
 ## Production hardening — 9 August 2026
 

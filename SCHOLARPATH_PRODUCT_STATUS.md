@@ -11,7 +11,7 @@ Verdict: the product shell, protected admin area, Supabase-backed ingestion arch
 - The "two admin interfaces" issue was caused by staff navigation mixing `/operations` with `/admin`. The Super Admin nav now stays inside `/admin`, and `/operations` redirects admins to `/admin?tab=review`.
 - Local build, typecheck and tests pass.
 - Supabase is connected, migrations are live, and the ingestion Edge Function is deployed.
-- The source network now contains 150 official scholarship pages. Opportunities Circle and Scholarpath.world are used only to discover official URLs; their prose and images are ignored. Published catalogue breadth and review throughput remain incomplete.
+- The source network now contains 405 records. Opportunities Circle and Scholarpath.world are used only to discover official URLs; their prose and images are ignored. Five historical URL aliases are archived and there are zero active normalized URL duplicate groups. Published catalogue breadth and review throughput remain incomplete.
 
 ## Module status
 
@@ -23,10 +23,10 @@ Verdict: the product shell, protected admin area, Supabase-backed ingestion arch
 | Student report | Partial | Report UI concept and pathway sections exist | Live sourced report from published catalogue, evidence impact explanations |
 | Recommendation engine | Partial | Deterministic eligibility flow and explainability direction exist | Broad published data, golden-profile regression, ranking weights, fairness checks |
 | Task and deadline system | Partial | Task/Kanban UI direction exists | Live generated tasks from missing evidence, impact scoring, deadline reminders |
-| Opportunity ingestion | Partial | 301 sources, 275 schedules, two daily secondary indexes, exact-host official crawling, snapshots and review candidates | Drain queue, enrich fields and prove publish workflow |
+| Opportunity ingestion | Partial | 405 source records, two daily secondary indexes, normalized URL deduplication, exact-host official crawling, snapshots and review candidates | Drain queue, enrich fields and prove publish workflow |
 | Admin command center | Partial | Protected Super Admin command center with source/review/run tabs | Cleaner admin-only IA, reviewer workflow polish, signed-in browser acceptance |
 | Country intelligence | Partial | Schema/UI direction exists | Full country profiles: costs, visa, work rights, safety, healthcare, halal/community, salaries |
-| Institution directory | Partial | Directory UI and database support exist | Production university catalogue, campuses, courses, intakes, entry equivalence |
+| Institution directory | Partial | Directory UI/database plus daily ROR identity enrichment; 12/12 current institutions uniquely matched | Broader production university catalogue, campuses, courses, intakes and entry equivalence |
 | Rankings | Not started | Product decision: rankings are context only | Ranking tables, source/licensing decision, ranking history |
 | Deployment and monitoring | Partial | Public Vercel deployment and Supabase backend are active | Monitoring, error capture and backup/rollback proof |
 | Security hardening | Partial | RLS/auth structure and protected APIs exist | Supabase advisor cleanup, leaked password protection, formal role-isolation test |
@@ -65,6 +65,13 @@ flowchart LR
 | Korea GKS / Study in Korea | Ready to add | Official source verified; needs source pack and parser |
 | Manaaki New Zealand | Candidate | Official portal identified; needs parser and policy check |
 | IsDB scholarships | Candidate | Official portal identified; needs parser and policy check |
+
+## API decision
+
+- ROR v2: active now for global institution identity, domains, locations and external IDs; it never supplies admission or scholarship eligibility truth.
+- CareerOneStop: selected for additional US scholarship discovery, but activation requires its free registered user ID and API token.
+- College Scorecard: use later for US institution costs/outcomes only.
+- Opportunities Circle and Scholarpath.world: discovery indexes only; CandidRoute follows their links and stores facts from official provider pages without copying their images or descriptions.
 
 ## What blocks a complete product
 
