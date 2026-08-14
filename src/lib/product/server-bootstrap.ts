@@ -118,8 +118,8 @@ async function loadHandoff(supabase: SupabaseClient, userId: string): Promise<As
 
 async function loadOpportunities(supabase: SupabaseClient, userId: string): Promise<OpportunitiesBootstrap> {
   const [programmes, scholarships, run] = await Promise.all([
-    supabase.from("programmes").select("id,slug,title,institution_name,country_code,level,field_family,intake_label,deadline_at,deadline_timezone,tuition_amount,tuition_currency,application_url,last_verified_at,next_review_at,attributes").eq("state", "published").order("deadline_at", { ascending: true, nullsFirst: false }).limit(50),
-    supabase.from("scholarships").select("id,slug,title,provider_name,country_code,cycle_label,opens_at,deadline_at,deadline_timezone,award_type,award_value,application_url,last_verified_at,next_review_at,attributes").eq("state", "published").order("deadline_at", { ascending: true, nullsFirst: false }).limit(50),
+    supabase.from("programmes").select("id,slug,title,institution_name,country_code,level,field_family,intake_label,deadline_at,deadline_timezone,tuition_amount,tuition_currency,application_url,last_verified_at,next_review_at,attributes,publish_tier").eq("state", "published").order("deadline_at", { ascending: true, nullsFirst: false }).limit(200),
+    supabase.from("scholarships").select("id,slug,title,provider_name,country_code,cycle_label,opens_at,deadline_at,deadline_timezone,award_type,award_value,application_url,last_verified_at,next_review_at,attributes,publish_tier").eq("state", "published").order("deadline_at", { ascending: true, nullsFirst: false }).limit(200),
     supabase.from("recommendation_runs").select("id").eq("user_id", userId).order("generated_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
   if (programmes.error || scholarships.error) return { items: [], recommendations: [], mode: "unavailable" };
@@ -129,6 +129,6 @@ async function loadOpportunities(supabase: SupabaseClient, userId: string): Prom
   const items = [
     ...(programmes.data ?? []).map((item) => ({ ...item, entityType: "programme" as const, provider: item.institution_name })),
     ...(scholarships.data ?? []).map((item) => ({ ...item, entityType: "scholarship" as const, provider: item.provider_name })),
-  ].sort((a, b) => String(a.deadline_at ?? "9999").localeCompare(String(b.deadline_at ?? "9999"))).slice(0, 50);
+  ].sort((a, b) => String(a.deadline_at ?? "9999").localeCompare(String(b.deadline_at ?? "9999"))).slice(0, 200);
   return { items, recommendations: (components.data ?? []) as OpportunitiesBootstrap["recommendations"], mode: "live" };
 }

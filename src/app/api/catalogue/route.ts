@@ -10,7 +10,7 @@ const querySchema = z.object({
   type: z.enum(["all", "programme", "scholarship"]).default("all"),
   country: z.string().trim().min(2).max(3).optional(),
   q: z.string().trim().max(100).optional(),
-  limit: z.coerce.number().int().min(1).max(50).default(24),
+  limit: z.coerce.number().int().min(1).max(200).default(100),
 });
 
 type CatalogueQuery = z.infer<typeof querySchema>;

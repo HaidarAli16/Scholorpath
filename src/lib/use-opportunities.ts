@@ -77,7 +77,7 @@ export function useOpportunities(portfolios?: unknown[], initial?: Opportunities
   const refresh = useCallback(async () => {
     try {
       const [catalogueResponse, recommendationResponse] = await Promise.all([
-        fetch("/api/catalogue?limit=50"),
+        fetch("/api/catalogue?limit=200"),
         fetch("/api/recommendations/latest"),
       ]);
       const catalogue = await catalogueResponse.json();
