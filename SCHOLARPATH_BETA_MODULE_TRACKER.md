@@ -12,7 +12,7 @@ Fresh verification on 14 August 2026: typecheck, lint, all 26 automated tests an
 |---|---|---|
 | UI shell | Partial | All 29 annotated UX defects are closed at the target desktop viewport; cross-device and mobile acceptance remain. |
 | Supabase backend | Partial | Live schema is reachable; migration parity is 36/36 and linked schema lint is clean. Advisors report no errors but 51 warnings; two-student isolation and staff-role acceptance remain. |
-| Opportunity ingestion | Partial | 63 sources exist, 61 are enabled and 45 have succeeded at least once; 18 currently record an error and only 5 approved candidates exist. |
+| Opportunity ingestion | Partial | 301 sources and 275 scheduled assignments now exist; two secondary discovery feeds resolve to 150 official scholarship sources, while review and publication remain the bottleneck. |
 | Recommendation engine | Partial | The engine direction is correct, but it cannot be trusted until published catalogue coverage and golden-profile tests exist. |
 | Country intelligence | Partial | Architecture/UI direction exists; complete country facts are still missing. |
 | Institution directory | Partial | Database/UI direction exists; production university, campus, course and ranking data are still missing. |
@@ -28,8 +28,8 @@ Fresh verification on 14 August 2026: typecheck, lint, all 26 automated tests an
 | Supabase migrations | Done | 36 local and 36 remote migrations; zero mismatch; linked schema lint clean. |
 | Production HTTP | Done | `/`, `/auth`, auth status, catalogue, countries, institutions and live scholarships return 200; anonymous admin API returns 401. |
 | Published catalogue | Blocked for release quality | Only 2 release-ready programmes and 3 release-ready scholarships are published. The release gate requires at least 10 current reviewed opportunities. |
-| Ingestion health | Partial | 63 sources, 61 enabled, 45 ever successful; latest 100 runs contain 79 no-change, 7 needs-review, 11 blocked and 3 failed. |
-| Review-to-publish proof | Missing | 699 candidates exist, 271 are pending, 5 approved and zero have `published_at`; the production pipeline has not yet proven candidate-to-catalogue publication. |
+| Ingestion health | Partial | 301 sources and 275 assignments exist, 271 enabled. The new daily discovery rollout is draining 94 queued runs; first acceptance produced 86 new official URLs and 11 structured scholarship candidates. |
+| Review-to-publish proof | Missing | 711 candidates exist, 283 are pending, 5 approved and zero have `published_at`; the production pipeline has not yet proven candidate-to-catalogue publication. |
 | Recommendation quality | Missing release proof | Deterministic engine exists, but 30 golden-profile regression/fairness cases and adequate catalogue breadth are missing. |
 | Security acceptance | Partial | Protected API behavior and schema lint pass. Current Advisors report 0 errors and 51 warnings: 21 security and 30 performance, led by 20 authenticated SECURITY DEFINER grants, 25 overlapping permissive policies, 5 auth RLS init-plan findings and leaked-password protection being disabled. Two-user/staff isolation proof also remains. |
 | Billing | Not started | Free/Pro entitlement controls exist, but checkout, webhook, billing portal and payment-state reconciliation are not connected. |
@@ -65,7 +65,7 @@ Admin acceptance correction: generic sign-in and OAuth callback redirects are no
 
 ## Ingestion and recommendation defect audit - 14 August 2026
 
-- Critical: 699 candidates contain zero normalized deadlines, funding types, award values, eligibility-country sets, degree levels or field families; 459 candidates carry validation errors and only 5 are approved.
+- Critical: the historical candidate backlog remains poorly normalized. The new official-page path produced 11 structured scholarship candidates in acceptance: 4 confirmed deadlines, 7 explicitly unconfirmed deadlines and 4 resolved funding types; only 5 total candidates are approved.
 - Critical: the production report uses hard-coded pathway/intelligence models while live recommendations run later through a separate catalogue engine, so the first report and saved recommendations can disagree.
 - Critical: all 12 published recommendation rules cover only nationality, subject, experience and declared English status; the engine currently has no sourced grade threshold, tuition/budget, intake, document, language-score or programme-specific equivalency rules.
 - High: the generic catalogue adapter is labelled as `programme` and uses an EACEA-specific HTML-card parser across unrelated worldwide sources, contributing to 669 programme candidates versus only 30 scholarship candidates.
@@ -87,6 +87,15 @@ Admin acceptance correction: generic sign-in and OAuth callback redirects are no
 - Verified: linked Supabase migration applied, `opportunity-ingest` redeployed, 9 sourced published rules remain after removing 3 generic/invented rules, and typecheck, lint, 29 tests and production build pass.
 - Deployed: revision `a3d447f` is live at `https://candidroute.vercel.app`; public home/catalogue return 200 and anonymous PDF export correctly returns 401.
 - Remaining data-quality gate: the live catalogue still contains only 2 programmes and 3 scholarships. The engine is now internally consistent, but recommendation breadth cannot be called production-grade until more official records and programme-specific rules are published.
+
+## Secondary discovery and deadline rechecks — 14 August 2026
+
+- Done live: Opportunities Circle and Scholarpath.world run every 24 hours as discovery-only indexes; their descriptions and images are never copied into catalogue truth.
+- Done live: Opportunities Circle's public WordPress search seeded 100 detail pages; Scholarpath.world's public JSON feed yielded 75 scholarship application URLs.
+- Done live: outbound URLs become exact-host official sources, then the existing HTTPS, redirect, robots, timeout, size-limit, snapshot and validation controls apply.
+- Done live: official pages without a deadline remain eligible for review with the explicit `deadline_unresolved` state; student UI displays **Deadline not confirmed**, and the official source is checked again daily.
+- Verified live: the first sample created 86 new official sources and 11 structured scholarship candidates; eight Opportunities Circle routes and three Scholarpath.world routes completed the official-page stage, with one correct robots block.
+- Remaining: drain the queued source backlog, enrich country/eligibility fields, approve strong records and prove review-to-publication-to-recommendation end to end.
 
 ## Production hardening — 9 August 2026
 

@@ -74,7 +74,7 @@ export function applyLiveRecommendations(
     strengths: item.reasons,
     blockers: [...item.failedGates, ...item.openChecks],
     nextActions: item.nextActions,
-    deadline: item.deadlineAt ?? "Deadline not verified",
+    deadline: item.deadlineAt ?? "Deadline not confirmed",
     source: {
       label: "Reviewed catalogue and linked official source",
       url: item.applicationUrl ?? "",

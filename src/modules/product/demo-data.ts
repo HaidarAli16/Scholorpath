@@ -27,7 +27,7 @@ export const opportunities: Opportunity[] = [
     provider: "University of Leeds",
     country: "United Kingdom",
     flag: "GB",
-    deadline: "Deadline unverified",
+    deadline: "Deadline not confirmed",
     deadlineNote: "March 2027 intake · confirm availability with Leeds",
     value: "£15,000 published tuition",
     match: "Conditional match",

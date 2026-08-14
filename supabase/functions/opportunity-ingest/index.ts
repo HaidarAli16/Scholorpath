@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 type Json = Record<string, unknown>;
 type Run = { id: string; source_id: string; adapter_id: string; status: string };
 type Source = { id: string; canonical_url: string; owner_name: string; country_code: string | null; content_hash: string | null };
-type Adapter = { id: string; kind: "html_detail" | "html_catalogue" | "json_feed" | "sitemap"; entity_type: "programme" | "scholarship" | "mixed"; allowed_hosts: string[]; config: Json; parser_version: string };
+type Adapter = { id: string; adapter_key: string; kind: "html_detail" | "html_catalogue" | "json_feed" | "sitemap"; entity_type: "programme" | "scholarship" | "mixed"; allowed_hosts: string[]; config: Json; parser_version: string };
 type Assignment = { schedule_minutes: number; etag: string | null; last_modified: string | null; consecutive_failures: number };
 
 const encoder = new TextEncoder();
@@ -59,6 +59,14 @@ function validateTarget(raw: string, allowedHosts: string[]) {
 function validateDiscoveryTarget(raw: string) {
   const url = new URL(raw);
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || isPrivateHost(url.hostname)) throw new Error('unsafe_discovery_target');
+  return url;
+}
+
+function removeTrackingParameters(url: URL) {
+  for (const key of [...url.searchParams.keys()]) {
+    if (/^(?:utm_.+|_gl|fbclid|gclid|msclkid|mc_cid|mc_eid)$/i.test(key)) url.searchParams.delete(key);
+  }
+  url.searchParams.sort();
   return url;
 }
 
@@ -249,6 +257,116 @@ function catalogueCardsFromHtml(html: string, base: string, config: Json) {
   return [...results].map(([url, label]) => ({ url, label }));
 }
 
+function linksFromJsonFeed(content: string, config: Json) {
+  const parsed = JSON.parse(content);
+  const limit = Math.min(Number(config.max_links || 100), 200);
+  const links = new Map<string, string>();
+  const items = config.feed_format === "wordpress_search"
+    ? parsed
+    : config.feed_format === "scholarpath_api" && parsed && typeof parsed === "object"
+      ? (parsed as Json).items
+      : [];
+  if (!Array.isArray(items)) return [];
+  for (const item of items) {
+    if (!item || typeof item !== "object") continue;
+    if (config.feed_format === "scholarpath_api" && String((item as Json).type || "").toLowerCase() !== "scholarship") continue;
+    const url = String(config.feed_format === "scholarpath_api" ? (item as Json).applicationUrl || "" : (item as Json).url || "");
+    const rawTitle = config.feed_format === "wordpress_search" ? (item as Json).title : (item as Json).title || "";
+    const title = stripHtml(String(rawTitle || "")).slice(0, 300);
+    try {
+      const safe = validateDiscoveryTarget(url);
+      if (safe.protocol !== "https:" || title.length < 5) continue;
+      safe.hash = "";
+      links.set(safe.toString(), title);
+    } catch { /* discard unsafe or malformed links */ }
+    if (links.size >= limit) break;
+  }
+  return [...links].map(([url, label]) => ({ url, label }));
+}
+
+function officialLinksFromHtml(html: string, base: string, config: Json) {
+  const baseHost = new URL(base).hostname.toLowerCase();
+  const excluded = (Array.isArray(config.exclude_host_suffixes) ? config.exclude_host_suffixes : []) as string[];
+  const limit = Math.min(Number(config.max_official_links || 3), 10);
+  const candidates = new Map<string, { url: string; label: string; score: number }>();
+  for (const match of html.matchAll(/<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
+    const label = stripHtml(match[2]).slice(0, 300);
+    try {
+      const url = validateDiscoveryTarget(new URL(decodeEntities(match[1]), base).toString());
+      const host = url.hostname.toLowerCase();
+      if (url.protocol !== "https:" || host === baseHost || host.endsWith(`.${baseHost}`)) continue;
+      if (excluded.some((suffix) => host === suffix.toLowerCase() || host.endsWith(`.${suffix.toLowerCase()}`))) continue;
+      if (/\.(?:jpe?g|png|gif|webp|svg|ico|mp4|mp3|zip|docx?|xlsx?|pdf)(?:$|\?)/i.test(url.pathname)) continue;
+      const haystack = `${label} ${url.pathname}`.toLowerCase();
+      let score = 0;
+      if (/official|apply now|application (?:page|portal|website)|visit website|scholarship website/.test(haystack)) score += 6;
+      if (/(?:\.gov(?:\.|$)|\.edu(?:\.|$)|\.ac\.|daad\.|britishcouncil\.|erasmus|europa\.eu)/.test(host)) score += 4;
+      if (/scholar|funding|grant|award|admission|apply/.test(haystack)) score += 2;
+      if (score < 4) continue;
+      url.hash = "";
+      const key = url.toString();
+      const previous = candidates.get(key);
+      if (!previous || score > previous.score) candidates.set(key, { url: key, label: label || host, score });
+    } catch { /* discard unsafe or malformed links */ }
+  }
+  return [...candidates.values()].sort((a, b) => b.score - a.score).slice(0, limit).map(({ url, label }) => ({ url, label }));
+}
+
+async function registerDiscoveredSource(
+  client: ReturnType<typeof createClient>,
+  item: { url: string; label: string },
+  adapterKey: string,
+  sourceType: string,
+  discoveredVia: string,
+) {
+  const target = removeTrackingParameters(validateDiscoveryTarget(item.url));
+  if (target.protocol !== "https:") return false;
+  const { data: adapter, error: adapterError } = await client.from("ingestion_adapters").select("id").eq("adapter_key", adapterKey).eq("enabled", true).single();
+  if (adapterError || !adapter) throw new Error(`discovery_adapter_missing:${adapterKey}`);
+  const owner = adapterKey === "secondary_scholarship_detail" ? new URL(discoveredVia).hostname : target.hostname;
+  let { data: record } = await client.from("source_records").select("id").eq("canonical_url", target.toString()).maybeSingle();
+  if (!record) {
+    const { data: inserted, error: sourceError } = await client.from("source_records")
+    .insert({
+      canonical_url: target.toString(),
+      source_type: sourceType,
+      owner_name: owner,
+      status: "unverified",
+      next_review_at: new Date().toISOString(),
+      verification_notes: "Discovered through a secondary index; only the official page may support publication.",
+    })
+    .select("id")
+    .single();
+    if (sourceError || !inserted) {
+      const { data: raced } = await client.from("source_records").select("id").eq("canonical_url", target.toString()).maybeSingle();
+      if (!raced) throw new Error(`discovered_source_write_failed:${sourceError?.message || "unknown"}`);
+      record = raced;
+    } else record = inserted;
+  }
+  const { data: existingSchedule } = await client.from("ingestion_sources").select("source_id").eq("source_id", record.id).maybeSingle();
+  if (existingSchedule) {
+    const { error: scheduleError } = await client.from("ingestion_sources").update({
+      enabled: true,
+      next_fetch_at: new Date().toISOString(),
+      last_error: null,
+      discovery_metadata: { discovered_via: discoveredVia, provenance_mode: "discovery_only" },
+    }).eq("source_id", record.id);
+    if (scheduleError) throw new Error(`discovered_source_schedule_failed:${scheduleError.message}`);
+  } else {
+    const { error: scheduleError } = await client.from("ingestion_sources").insert({
+      source_id: record.id,
+      adapter_id: adapter.id,
+      enabled: true,
+      priority: adapterKey === "discovered_official_scholarship" ? 2 : 3,
+      schedule_minutes: 1440,
+      next_fetch_at: new Date().toISOString(),
+      discovery_metadata: { discovered_via: discoveredVia, provenance_mode: "discovery_only" },
+    });
+    if (scheduleError && scheduleError.code !== "23505") throw new Error(`discovered_source_schedule_failed:${scheduleError.message}`);
+  }
+  return true;
+}
+
 async function sha256(value: string) {
   return [...new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(value)))].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
@@ -287,11 +405,12 @@ function changeSummary(previous: Json | null, current: Json) {
 async function runWorker(client: ReturnType<typeof createClient>, run: Run) {
   const started = Date.now();
   const { data: source } = await client.from("source_records").select("id,canonical_url,owner_name,country_code,content_hash").eq("id", run.source_id).single<Source>();
-  const { data: adapter } = await client.from("ingestion_adapters").select("id,kind,entity_type,allowed_hosts,config,parser_version").eq("id", run.adapter_id).single<Adapter>();
+  const { data: adapter } = await client.from("ingestion_adapters").select("id,adapter_key,kind,entity_type,allowed_hosts,config,parser_version").eq("id", run.adapter_id).single<Adapter>();
   const { data: assignment } = await client.from("ingestion_sources").select("schedule_minutes,etag,last_modified,consecutive_failures").eq("source_id", run.source_id).single<Assignment>();
   if (!source || !adapter || !assignment) throw new Error("ingestion_configuration_missing");
-  const target = validateTarget(source.canonical_url, adapter.allowed_hosts);
-  const robots = await checkRobots(target, adapter.allowed_hosts);
+  const fetchHosts = adapter.adapter_key === "discovered_official_scholarship" ? [new URL(source.canonical_url).hostname] : adapter.allowed_hosts;
+  const target = validateTarget(source.canonical_url, fetchHosts);
+  const robots = await checkRobots(target, fetchHosts);
   if (!robots.allowed) {
     await client.from("ingestion_runs").update({ status: "blocked", robots_state: robots.state, finished_at: new Date().toISOString(), duration_ms: Date.now() - started, error_code: "robots_blocked", error_message: "Fetching is not permitted by the source robots policy." }).eq("id", run.id);
     await client.from("ingestion_sources").update({ robots_state: robots.state, robots_checked_at: new Date().toISOString(), next_fetch_at: new Date(Date.now() + 86_400_000).toISOString(), last_error: "robots_blocked" }).eq("source_id", source.id);
@@ -300,7 +419,7 @@ async function runWorker(client: ReturnType<typeof createClient>, run: Run) {
   const headers: Record<string, string> = {};
   if (assignment.etag) headers["if-none-match"] = assignment.etag;
   if (assignment.last_modified) headers["if-modified-since"] = assignment.last_modified;
-  const fetched = await safeFetch(target.toString(), adapter.allowed_hosts, { headers });
+  const fetched = await safeFetch(target.toString(), fetchHosts, { headers });
   if (fetched.status === 304) {
     await client.from("ingestion_runs").update({ status: "no_change", http_status: 304, robots_state: robots.state, final_url: fetched.url || target.toString(), previous_content_hash: source.content_hash, content_hash: source.content_hash, content_changed: false, finished_at: new Date().toISOString(), duration_ms: Date.now() - started }).eq("id", run.id);
     await client.from("ingestion_sources").update({ last_success_at: new Date().toISOString(), consecutive_failures: 0, robots_state: robots.state, robots_checked_at: new Date().toISOString(), next_fetch_at: new Date(Date.now() + assignment.schedule_minutes * 60_000).toISOString(), last_http_status: 304, last_error: null }).eq("source_id", source.id);
@@ -326,7 +445,11 @@ async function runWorker(client: ReturnType<typeof createClient>, run: Run) {
   const pageUrl = canonicalLink(content, fetched.url || target.toString());
   const dates = extractDates(normalizedText);
   const state = applicationState(normalizedText, adapter.config);
-  const discovered = adapter.kind === "html_catalogue"
+  const discovered = adapter.adapter_key === "secondary_scholarship_detail"
+    ? officialLinksFromHtml(content, pageUrl, adapter.config)
+    : adapter.kind === "json_feed"
+      ? linksFromJsonFeed(content, adapter.config)
+      : adapter.kind === "html_catalogue"
     ? (adapter.config.extract_card_candidates === true
       ? catalogueCardsFromHtml(content, pageUrl, adapter.config)
       : linksFromHtml(content, pageUrl, adapter.allowed_hosts, adapter.config))
@@ -335,6 +458,18 @@ async function runWorker(client: ReturnType<typeof createClient>, run: Run) {
   if (snapshotError || !snapshot) throw new Error(`snapshot_failed:${snapshotError?.message || "unknown"}`);
   let candidateCount = 0;
   for (const item of discovered) {
+    if (adapter.adapter_key === "secondary_scholarpath_feed") {
+      await registerDiscoveredSource(client, item, "discovered_official_scholarship", "official_scholarship_page", pageUrl);
+      continue;
+    }
+    if (adapter.adapter_key === "secondary_scholarship_catalogue" || adapter.adapter_key === "secondary_scholarship_feed") {
+      await registerDiscoveredSource(client, item, "secondary_scholarship_detail", "secondary_discovery", pageUrl);
+      continue;
+    }
+    if (adapter.adapter_key === "secondary_scholarship_detail") {
+      await registerDiscoveredSource(client, item, "discovered_official_scholarship", "official_scholarship_page", pageUrl);
+      continue;
+    }
     const entityType = inferType(item.label, item.url, adapter.entity_type);
     const isDiscovery = adapter.kind === "html_catalogue" || adapter.kind === "sitemap";
     const facts = isDiscovery ? {} : structuredFacts(normalizedText, entityType);

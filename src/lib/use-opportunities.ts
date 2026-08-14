@@ -40,9 +40,9 @@ const countries: Record<string, string> = { GB: "United Kingdom", UK: "United Ki
 const currency = new Intl.NumberFormat("en", { maximumFractionDigits: 0 });
 
 function deadlineLabel(value?: string | null) {
-  if (!value) return "Deadline unverified";
+  if (!value) return "Deadline not confirmed";
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "Deadline unverified" : new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(date);
+  return Number.isNaN(date.getTime()) ? "Deadline not confirmed" : new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(date);
 }
 
 function valueLabel(item: CatalogueItem) {
@@ -134,7 +134,7 @@ function mapLiveScholarship(item: LiveScholarshipPreview): Opportunity {
     provider: item.provider,
     country: item.country,
     flag: flags[item.country] ?? "INT",
-    deadline: "Deadline unverified",
+    deadline: "Deadline not confirmed",
     deadlineNote: "Live discovery lead · official cycle and deadline required",
     value: item.value,
     match: "Needs verification",

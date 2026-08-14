@@ -1,6 +1,6 @@
-# ScholarPath product status
+# CandidRoute product status
 
-Updated: 7 August 2026
+Updated: 14 August 2026
 
 Verdict: the product shell, protected admin area, Supabase-backed ingestion architecture and first official-source pipeline exist. The product is not complete yet because the opportunity catalogue is still review-heavy and not broad enough to power a best-in-class recommendation engine.
 
@@ -11,7 +11,7 @@ Verdict: the product shell, protected admin area, Supabase-backed ingestion arch
 - The "two admin interfaces" issue was caused by staff navigation mixing `/operations` with `/admin`. The Super Admin nav now stays inside `/admin`, and `/operations` redirects admins to `/admin?tab=review`.
 - Local build, typecheck and tests pass.
 - Supabase is connected, migrations are live, and the ingestion Edge Function is deployed.
-- The system is not yet pulling scholarships from the whole world. It has a governed source pipeline and first sources, but a worldwide catalogue needs more official source packs, parsers and review.
+- The source network now contains 150 official scholarship pages. Opportunities Circle and Scholarpath.world are used only to discover official URLs; their prose and images are ignored. Published catalogue breadth and review throughput remain incomplete.
 
 ## Module status
 
@@ -23,19 +23,20 @@ Verdict: the product shell, protected admin area, Supabase-backed ingestion arch
 | Student report | Partial | Report UI concept and pathway sections exist | Live sourced report from published catalogue, evidence impact explanations |
 | Recommendation engine | Partial | Deterministic eligibility flow and explainability direction exist | Broad published data, golden-profile regression, ranking weights, fairness checks |
 | Task and deadline system | Partial | Task/Kanban UI direction exists | Live generated tasks from missing evidence, impact scoring, deadline reminders |
-| Opportunity ingestion | Partial | Source registry, Edge worker, snapshots, candidates, review queue | More official global sources, parser coverage, publish workflow exercise |
+| Opportunity ingestion | Partial | 301 sources, 275 schedules, two daily secondary indexes, exact-host official crawling, snapshots and review candidates | Drain queue, enrich fields and prove publish workflow |
 | Admin command center | Partial | Protected Super Admin command center with source/review/run tabs | Cleaner admin-only IA, reviewer workflow polish, signed-in browser acceptance |
 | Country intelligence | Partial | Schema/UI direction exists | Full country profiles: costs, visa, work rights, safety, healthcare, halal/community, salaries |
 | Institution directory | Partial | Directory UI and database support exist | Production university catalogue, campuses, courses, intakes, entry equivalence |
 | Rankings | Not started | Product decision: rankings are context only | Ranking tables, source/licensing decision, ranking history |
-| Deployment and monitoring | Partial | Local app builds; Supabase backend active | Vercel production env, monitoring, error capture, backup/rollback proof |
+| Deployment and monitoring | Partial | Public Vercel deployment and Supabase backend are active | Monitoring, error capture and backup/rollback proof |
 | Security hardening | Partial | RLS/auth structure and protected APIs exist | Supabase advisor cleanup, leaked password protection, formal role-isolation test |
 
 ## Opportunity data pipeline
 
 ```mermaid
 flowchart LR
-  A["Official source registry"] --> B["Scheduled Supabase Edge worker"]
+  S["Secondary discovery indexes"] --> A["Official outbound URLs only"]
+  A --> B["Scheduled Supabase Edge worker"]
   B --> C["Safety checks: HTTPS, host allowlist, redirects, robots"]
   C --> D["Snapshot + content hash"]
   D --> E["Deterministic parser"]
@@ -50,6 +51,8 @@ flowchart LR
 
 | Source area | Status | Notes |
 |---|---|---|
+| Opportunities Circle | Live discovery | Daily public WordPress feed; 100 detail routes seeded; only official outbound URLs are retained |
+| Scholarpath.world | Live discovery | Daily public JSON feed; 75 scholarship application URLs found; descriptions and images ignored |
 | EACEA/Erasmus catalogue | Live partial | 220 discovery leads captured; secure leads can be adopted, but not auto-published |
 | Chevening, DAAD, Ireland, Netherlands, Leeds, Saarland, Trinity | Live partial | Detail sources exist and need structured enrichment/review |
 | Commonwealth Scholarships | Ready to add | Official source verified; needs source pack and parser |
@@ -65,7 +68,7 @@ flowchart LR
 
 ## What blocks a complete product
 
-1. The global source catalogue is too small for serious recommendations.
+1. The published catalogue is too small for serious recommendations even though official-source discovery is now broad.
 2. Candidate records need structured fields before they can influence eligibility.
 3. The review-to-publish workflow needs a signed-in admin acceptance pass.
 4. Country intelligence and institution directory need production data, not demo coverage.
@@ -87,5 +90,4 @@ flowchart LR
 
 - `npm run build`: passed.
 - `npm run typecheck`: passed after build generated `.next/types`.
-- `npm test`: passed, 24 tests.
-
+- `npm test`: passed, 29 tests.
