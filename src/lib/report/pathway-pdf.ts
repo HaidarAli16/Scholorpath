@@ -152,12 +152,7 @@ export async function buildPathwayReportPdf(profile: Partial<AssessmentInput>, r
     heading("Recommendation audit", "Source-aware and reproducible");
     text(`${intelligence.audit.evaluatedRules} rules evaluated: ${intelligence.audit.passedRules} passed, ${intelligence.audit.unknownRules} unresolved, ${intelligence.audit.failedRules} failed.`, { size: 10.5, gap: 14 });
     intelligence.audit.trace.forEach((item) => bullet(item));
-    heading("Programme evidence", "Top evaluated opportunities");
-    intelligence.opportunities.slice(0, isFree ? 3 : 5).forEach((item) => {
-      ensure(62, "Audit summary");
-      page.drawText(clean(item.title), { x: PAGE.margin, y, font: bold, size: 10.5, color: ink }); y -= 15;
-      page.drawText(`${clean(item.provider)} | ${clean(item.country)} | priority ${item.researchPriority} | confidence ${item.confidence}%`, { x: PAGE.margin, y, font: regular, size: 8.5, color: muted }); y -= 22;
-    });
+    text("The opportunity list appears once in Pathway comparison. This page records only the rules and source snapshot behind that same list.", { size: 9, color: muted, gap: 12 });
     text(`Engine ${intelligence.engineVersion}. Evaluated ${new Date(intelligence.evaluatedAt).toLocaleString("en-GB")}.`, { size: 8.5, color: muted });
   }
 

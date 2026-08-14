@@ -9,7 +9,7 @@ type Adapter = { id: string; kind: "html_detail" | "html_catalogue" | "json_feed
 type Assignment = { schedule_minutes: number; etag: string | null; last_modified: string | null; consecutive_failures: number };
 
 const encoder = new TextEncoder();
-const userAgent = "ScholarPathBot/1.0 (+https://scholarpath.app/data-policy)";
+const userAgent = "CandidRouteBot/1.0 (+https://candidroute.vercel.app/privacy)";
 
 function response(body: Json, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -82,7 +82,7 @@ function robotsAllows(text: string, pathname: string) {
     const [rawKey, ...rest] = line.split(":");
     const key = rawKey.toLowerCase();
     const value = rest.join(":").trim();
-    if (key === "user-agent") active = value === "*" || value.toLowerCase() === "scholarpathbot";
+    if (key === "user-agent") active = value === "*" || value.toLowerCase() === "candidroutebot";
     else if (active && (key === "allow" || key === "disallow") && value) rules.push({ allow: key === "allow", path: value });
   }
   const matches = rules.filter((rule) => pathname.startsWith(rule.path)).sort((a, b) => b.path.length - a.path.length);
@@ -147,6 +147,49 @@ function applicationState(text: string, config: Json) {
   if (closed.some((pattern) => lower.includes(pattern.toLowerCase()))) return "closed";
   if (open.some((pattern) => lower.includes(pattern.toLowerCase()))) return "open";
   return "unknown";
+}
+
+function parsePublishedDate(value: string) {
+  const cleaned = value.trim().replace(/(st|nd|rd|th)\b/gi, "");
+  const iso = cleaned.match(/\b(20\d{2})-(0[1-9]|1[0-2])-([0-2]\d|3[01])\b/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}T23:59:59Z`;
+  const parsed = Date.parse(`${cleaned} 23:59:59 UTC`);
+  if (!Number.isFinite(parsed)) return null;
+  const date = new Date(parsed);
+  if (date.getUTCFullYear() < new Date().getUTCFullYear() - 1 || date.getUTCFullYear() > new Date().getUTCFullYear() + 5) return null;
+  return date.toISOString();
+}
+
+function deadlineFacts(text: string) {
+  const datePattern = "(?:20\\d{2}-\\d{2}-\\d{2}|(?:[0-3]?\\d\\s+)?(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:\\s+[0-3]?\\d,?)?\\s+20\\d{2})";
+  const contextual = new RegExp(`(?:deadline|apply by|applications? (?:close|closes|end|ends)|closing date|due date)[^.!?\\n]{0,100}?(${datePattern})`, "i").exec(text);
+  const rolling = /rolling (?:basis|admissions?|applications?)/i.test(text);
+  if (contextual) return { deadline_text: contextual[0].trim().slice(0, 240), deadline_date: parsePublishedDate(contextual[1]), deadline_is_rolling: false };
+  if (rolling) return { deadline_text: "Rolling applications", deadline_date: null, deadline_is_rolling: true };
+  return { deadline_text: null, deadline_date: null, deadline_is_rolling: false };
+}
+
+function structuredFacts(text: string, entityType: "programme" | "scholarship") {
+  const lower = text.toLowerCase();
+  const deadline = deadlineFacts(text);
+  if (entityType === "scholarship") {
+    const fundingType = /fully funded|full (?:tuition|scholarship|award)/i.test(text) ? "full"
+      : /partial(?:ly)? funded|partial scholarship|tuition waiver/i.test(text) ? "partial"
+      : null;
+    const award = text.match(/(?:award|scholarship|stipend|grant)[^.!?\n]{0,50}?((?:USD|EUR|GBP|CAD|AUD|PKR|INR|BDT|\$|€|£)\s?[\d,.]+(?:\s?(?:per year|annually|monthly))?)/i);
+    return { ...deadline, funding_type: fundingType, award_value_text: award?.[1] ?? null };
+  }
+  const degreeLevel = /\b(phd|doctoral|doctorate)\b/i.test(text) ? "doctoral"
+    : /\b(master|msc|ma|mba|llm|postgraduate)\b/i.test(text) ? "masters"
+    : /\b(bachelor|undergraduate|bsc|ba|llb)\b/i.test(text) ? "bachelors"
+    : null;
+  const fieldFamily = /computer|software|data science|artificial intelligence|information technology/.test(lower) ? "computing"
+    : /engineering/.test(lower) ? "engineering"
+    : /business|management|finance|economics|law/.test(lower) ? "business"
+    : /medicine|health|nursing|public health/.test(lower) ? "health"
+    : /mathematics|statistics|physics|chemistry|biology|natural science/.test(lower) ? "natural_sciences"
+    : null;
+  return { ...deadline, degree_level: degreeLevel, field_family: fieldFamily };
 }
 
 function linksFromHtml(html: string, base: string, allowedHosts: string[], config: Json) {
@@ -228,7 +271,10 @@ function validationErrors(data: Json) {
   if (!officialUrl.startsWith("http://") && !officialUrl.startsWith("https://")) errors.push("official_url_missing");
   if (officialUrl.startsWith("http://")) errors.push("source_url_insecure");
   if (data.discovery_only !== true && data.application_state === "unknown") errors.push("application_state_unresolved");
-  if (data.discovery_only !== true && (!Array.isArray(data.date_mentions) || !(data.date_mentions as unknown[]).length)) errors.push("deadline_unresolved");
+  if (data.discovery_only !== true && !data.deadline_date && data.deadline_is_rolling !== true) errors.push("deadline_unresolved");
+  if (data.discovery_only !== true && data.entity_type === "scholarship" && !data.funding_type) errors.push("funding_unresolved");
+  if (data.discovery_only !== true && data.entity_type === "programme" && !data.degree_level) errors.push("degree_level_unresolved");
+  if (data.discovery_only !== true && data.entity_type === "programme" && !data.field_family) errors.push("field_family_unresolved");
   return errors;
 }
 
@@ -290,14 +336,19 @@ async function runWorker(client: ReturnType<typeof createClient>, run: Run) {
   let candidateCount = 0;
   for (const item of discovered) {
     const entityType = inferType(item.label, item.url, adapter.entity_type);
-    const normalized: Json = { title: item.label || title, provider_name: source.owner_name, country_code: source.country_code, canonical_url: item.url, application_url: item.url, application_state: state, date_mentions: dates, source_page_title: title, parser_version: adapter.parser_version, discovery_only: adapter.kind === "html_catalogue" };
+    const isDiscovery = adapter.kind === "html_catalogue" || adapter.kind === "sitemap";
+    const facts = isDiscovery ? {} : structuredFacts(normalizedText, entityType);
+    const normalized: Json = { title: item.label || title, provider_name: source.owner_name, country_code: source.country_code, canonical_url: item.url, application_url: item.url, entity_type: entityType, application_state: isDiscovery ? "unknown" : state, date_mentions: isDiscovery ? [] : dates, source_page_title: title, parser_version: adapter.parser_version, discovery_only: isDiscovery, ...facts };
     const candidateHash = await sha256(JSON.stringify(normalized));
     const key = externalKey(item.url);
     const { data: prior } = await client.from("opportunity_candidates").select("normalized_data").eq("source_id", source.id).eq("external_key", key).neq("content_hash", candidateHash).order("created_at", { ascending: false }).limit(1).maybeSingle();
-    const { error } = await client.from("opportunity_candidates").upsert({ run_id: run.id, source_id: source.id, snapshot_id: snapshot.id, entity_type: entityType, external_key: key, canonical_url: item.url, title: String(normalized.title), provider_name: source.owner_name, country_code: source.country_code, normalized_data: normalized, content_hash: candidateHash, validation_errors: validationErrors(normalized), change_summary: changeSummary((prior?.normalized_data as Json | null) || null, normalized), review_state: "pending" }, { onConflict: "canonical_url,content_hash", ignoreDuplicates: true });
-    if (!error) candidateCount += 1;
+    const { data: inserted, error } = await client.from("opportunity_candidates")
+      .upsert({ run_id: run.id, source_id: source.id, snapshot_id: snapshot.id, entity_type: entityType, external_key: key, canonical_url: item.url, title: String(normalized.title), provider_name: source.owner_name, country_code: source.country_code, normalized_data: normalized, content_hash: candidateHash, validation_errors: validationErrors(normalized), change_summary: changeSummary((prior?.normalized_data as Json | null) || null, normalized), review_state: "pending" }, { onConflict: "canonical_url,content_hash", ignoreDuplicates: true })
+      .select("id");
+    if (error) throw new Error(`candidate_write_failed:${error.message}`);
+    if (inserted?.length) candidateCount += 1;
   }
-  await client.from("source_records").update({ content_hash: hash, next_review_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", source.id);
+  await client.from("source_records").update({ content_hash: hash, next_review_at: new Date(Date.now() + assignment.schedule_minutes * 60_000).toISOString(), updated_at: new Date().toISOString() }).eq("id", source.id);
   await client.from("ingestion_runs").update({ status: candidateCount ? "needs_review" : "succeeded", http_status: fetched.status, robots_state: robots.state, final_url: pageUrl, previous_content_hash: source.content_hash, content_hash: hash, content_changed: true, bytes_received: bytes, discovered_count: discovered.length, candidate_count: candidateCount, finished_at: new Date().toISOString(), duration_ms: Date.now() - started, metrics: { content_type: contentType, parser_version: adapter.parser_version } }).eq("id", run.id);
   await client.from("ingestion_sources").update({ last_success_at: new Date().toISOString(), consecutive_failures: 0, etag: fetched.headers.get("etag"), last_modified: fetched.headers.get("last-modified"), robots_state: robots.state, robots_checked_at: new Date().toISOString(), next_fetch_at: new Date(Date.now() + assignment.schedule_minutes * 60_000).toISOString(), last_http_status: fetched.status, last_error: null }).eq("source_id", source.id);
   return { runId: run.id, status: candidateCount ? "needs_review" : "succeeded", candidates: candidateCount };

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { assessmentInputSchema } from "./schema";
 import { generateAssessmentReport } from "./engine";
+import { applyLiveRecommendations } from "./live-report";
+import { evaluateRecommendations, type RecommendationEntity } from "../recommendation/engine";
 import type { AssessmentInput } from "./types";
 
 const validInput: AssessmentInput = {
@@ -62,5 +64,35 @@ describe("assessment report", () => {
     const report = generateAssessmentReport({ ...validInput, destinationPreference: "UK" });
     expect(report.pathways[0].id).toBe("uk");
     expect(report.pathways[0].state).not.toBe("not_recommended");
+  });
+
+  it("replaces prototype pathways with the same live catalogue evaluation used by recommendations", () => {
+    const catalogue: RecommendationEntity[] = [{
+      id: "live-programme",
+      entityType: "programme",
+      title: "Verified MSc Data Science",
+      provider: "Example University",
+      countryCode: "GB",
+      applicationUrl: "https://example.edu/msc-data-science",
+      deadlineAt: "2027-09-01T00:00:00Z",
+      sourceFreshness: "verified",
+      rules: [{
+        id: "qualification-rule",
+        ruleKey: "qualification_level",
+        ruleGroup: "academic",
+        operator: "in",
+        profileField: "qualificationLevel",
+        expectedValue: ["bachelors", "masters"],
+        severity: "hard",
+        explanation: "A relevant bachelor's degree is required.",
+        version: 1,
+      }],
+    }];
+    const results = evaluateRecommendations(validInput as unknown as Record<string, unknown>, catalogue, new Date("2026-08-01T00:00:00Z"));
+    const report = applyLiveRecommendations(generateAssessmentReport(validInput), validInput, results, "catalogue-test");
+    expect(report.pathways).toHaveLength(1);
+    expect(report.pathways[0]).toMatchObject({ id: "live-programme", title: "Verified MSc Data Science" });
+    expect(report.intelligence.opportunities[0].id).toBe("live-programme");
+    expect(report.intelligence.audit.sourceVersions).toEqual(["catalogue-test"]);
   });
 });

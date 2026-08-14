@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareRuleValue, evaluateRecommendations, recommendationEngineVersion, type AtomicRule, type RecommendationEntity } from "./engine";
+import { compareRuleValue, evaluateRecommendations, recommendationEngineVersion, recommendationWeights, type AtomicRule, type RecommendationEntity } from "./engine";
 
 const rule = (partial: Partial<AtomicRule> = {}): AtomicRule => ({
   id: crypto.randomUUID(), ruleKey: "grade", ruleGroup: "academic", operator: "gte", profileField: "grade",
@@ -53,5 +53,31 @@ describe("recommendation rules", () => {
     const [other] = evaluateRecommendations({ grade: 80, destinationPreference: "Germany" }, [entity({ countryCode: "GB", affordabilitySignal: 3, visaFeasibilitySignal: 5, careerSignal: 5 })], new Date("2026-08-01T00:00:00Z"));
     expect(preferred.scoreComponents.preference).toBeGreaterThan(other.scoreComponents.preference);
     expect(preferred.scoreComponents.affordability).toBeGreaterThan(other.scoreComponents.affordability);
+  });
+
+  it("maps the onboarding qualification label to the catalogue rule vocabulary", () => {
+    const qualificationRule = rule({
+      ruleKey: "qualification_level",
+      profileField: "qualificationLevel",
+      operator: "in",
+      expectedValue: ["bachelors", "masters", "professional"],
+    });
+    const [result] = evaluateRecommendations(
+      { qualification: "Four-year bachelor's degree" },
+      [entity({ rules: [qualificationRule] })],
+      new Date("2026-08-01T00:00:00Z"),
+    );
+    expect(result.requirementEvaluations[0]).toMatchObject({ outcome: "pass", actual: "bachelors" });
+  });
+
+  it("does not award invented points when catalogue signals and rules are missing", () => {
+    const [result] = evaluateRecommendations(
+      { destinationPreference: "suggest" },
+      [entity({ rules: [], deadlineAt: null, fundingSignal: undefined })],
+      new Date("2026-08-01T00:00:00Z"),
+    );
+    expect(result.scoreComponents).toMatchObject({ eligibility: 0, fit: 0, funding: 0, deadline: 0, preference: 0 });
+    expect(result.score).toBe(recommendationWeights.freshness);
+    expect(result.state).toBe("conditional");
   });
 });

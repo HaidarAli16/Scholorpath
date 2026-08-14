@@ -19,6 +19,7 @@ export type RecommendationEntity = {
   title: string;
   provider: string;
   countryCode?: string | null;
+  applicationUrl?: string | null;
   deadlineAt?: string | null;
   fundingSignal?: number;
   affordabilitySignal?: number;
@@ -46,6 +47,10 @@ export type RecommendationResult = {
   entityType: "programme" | "scholarship";
   title: string;
   provider: string;
+  countryCode?: string | null;
+  deadlineAt?: string | null;
+  applicationUrl?: string | null;
+  sourceFreshness: RecommendationEntity["sourceFreshness"];
   state: "confirmed" | "conditional" | "failed" | "unknown" | "stale";
   score: number;
   scoreComponents: ScoreComponents;
@@ -60,16 +65,10 @@ export type RecommendationResult = {
   auditTrace: string[];
 };
 
-export const recommendationEngineVersion = "rules-4.0.0-country-institution-intelligence";
+export const recommendationEngineVersion = "rules-5.0.0-single-source-evidence";
 export const recommendationWeights = Object.freeze({ eligibility: 30, fit: 20, funding: 12, deadline: 8, freshness: 7, evidence: 5, affordability: 8, visaFeasibility: 5, careerAlignment: 3, preference: 2 });
 
-export function normalizeGrade(gradeValue: number, gradeMaximum: number, nationality?: string | string[]): number {
-  if (gradeMaximum === 5 && nationality) {
-    const nat = Array.isArray(nationality) ? nationality.join(',') : nationality;
-    if (nat.includes('Germany') || nat.includes('DE')) {
-      return Math.round(((5.0 - gradeValue) / 4.0) * 100);
-    }
-  }
+export function normalizeGrade(gradeValue: number, gradeMaximum: number): number {
   if (gradeMaximum === 4) return Math.round((gradeValue / 4) * 100);
   if (gradeMaximum === 5) return Math.round((gradeValue / 5) * 100);
   if (gradeMaximum === 10) return Math.round((gradeValue / 10) * 100);
@@ -82,7 +81,28 @@ function readPath(profile: Record<string, unknown>, path: string) {
   if (path === 'normalizedGrade') {
     const value = profile.gradeValue as number;
     const max = profile.gradeMaximum as number;
-    if (value && max) return normalizeGrade(value, max, profile.nationalities as string[]);
+    if (value && max) return normalizeGrade(value, max);
+  }
+  if (path === "qualificationLevel") {
+    const qualification = String(profile.qualification ?? "").toLocaleLowerCase("en");
+    if (/phd|doctoral/.test(qualification)) return "doctoral";
+    if (/master/.test(qualification)) return "masters";
+    if (/mbbs|bds|medicine|law|professional/.test(qualification)) return "professional";
+    if (/bachelor/.test(qualification)) return "bachelors";
+    if (/secondary|high school|a.level|intermediate/.test(qualification)) return "secondary";
+  }
+  if (path === "fieldFamilyToken") {
+    const field = String(profile.fieldFamily ?? "").toLocaleLowerCase("en");
+    if (/comput|information technology|data|software/.test(field)) return "computing";
+    if (/engineer/.test(field)) return "engineering";
+    if (/business|management|law/.test(field)) return "business";
+    if (/natural science|mathemat|statistic/.test(field)) return "natural_sciences";
+    if (/health|medicine|welfare/.test(field)) return "health";
+    if (/social science|journal/.test(field)) return "social_sciences";
+    if (/education/.test(field)) return "education";
+    if (/arts|humanities/.test(field)) return "arts_humanities";
+    if (/agriculture|veterinary/.test(field)) return "agriculture";
+    if (/services/.test(field)) return "services";
   }
   return path.split(".").reduce<unknown>((value, key) => value && typeof value === "object" ? (value as Record<string, unknown>)[key] : undefined, profile);
 }
@@ -111,7 +131,7 @@ function componentScore(passed: number, known: number, maximum: number, emptySco
 }
 
 function deadlineScore(deadlineAt: string | null | undefined, now: Date) {
-  if (!deadlineAt) return { score: 2.4, expired: false, reason: "Deadline is not yet verified." };
+  if (!deadlineAt) return { score: 0, expired: false, reason: "Deadline is not yet verified." };
   const days = (new Date(deadlineAt).getTime() - now.getTime()) / 86_400_000;
   if (days < 0) return { score: 0, expired: true, reason: "The published deadline has passed." };
   if (days < 14) return { score: 1.6, expired: false, reason: "Less than two weeks remain; evidence feasibility is high risk." };
@@ -120,13 +140,13 @@ function deadlineScore(deadlineAt: string | null | undefined, now: Date) {
   return { score: 8, expired: false, reason: "The current deadline leaves a workable preparation window." };
 }
 
-function signalScore(signal: number | undefined, maximum: number, fallback: number) {
+function signalScore(signal: number | undefined, maximum: number, fallback = 0) {
   return Math.round(Math.max(0, Math.min(10, signal ?? fallback)) / 10 * maximum * 100) / 100;
 }
 
 function preferenceScore(profile: Record<string, unknown>, countryCode?: string | null) {
   const preference = String(profile.destinationPreference ?? "suggest");
-  if (preference === "suggest" || preference === "World") return 1;
+  if (preference === "suggest" || preference === "World") return 0;
   const matches = preference === "UK" ? countryCode === "GB"
     : preference === "Germany" ? countryCode === "DE"
     : preference === "Europe" ? ["DE", "NL", "IE", "EU"].includes(countryCode ?? "")
@@ -138,7 +158,7 @@ function preferenceScore(profile: Record<string, unknown>, countryCode?: string 
     : preference === "Singapore" ? countryCode === "SG"
     : preference === "Malaysia" ? countryCode === "MY"
     : false;
-  return matches ? recommendationWeights.preference : 0.5;
+  return matches ? recommendationWeights.preference : 0;
 }
 
 export function evaluateRecommendations(profile: Record<string, unknown>, entities: RecommendationEntity[], now = new Date()): RecommendationResult[] {
@@ -187,15 +207,15 @@ export function evaluateRecommendations(profile: Record<string, unknown>, entiti
 
     const hardUnknown = counts.hard.total - counts.hard.known;
     const components: ScoreComponents = {
-      eligibility: componentScore(counts.hard.pass, counts.hard.total, recommendationWeights.eligibility, counts.hard.total ? 0 : 10),
-      fit: componentScore(counts.soft.pass, counts.soft.total, recommendationWeights.fit, 6),
-      funding: signalScore(entity.fundingSignal, recommendationWeights.funding, 5),
+      eligibility: componentScore(counts.hard.pass, counts.hard.total, recommendationWeights.eligibility, 0),
+      fit: componentScore(counts.soft.pass, counts.soft.total, recommendationWeights.fit, 0),
+      funding: signalScore(entity.fundingSignal, recommendationWeights.funding),
       deadline: deadline.score,
       freshness: entity.sourceFreshness === "verified" ? recommendationWeights.freshness : entity.sourceFreshness === "review_due" ? recommendationWeights.freshness / 2 : 0,
       evidence: componentScore(counts.information.pass, counts.information.total, recommendationWeights.evidence, 0),
-      affordability: signalScore(entity.affordabilitySignal, recommendationWeights.affordability, 5),
-      visaFeasibility: signalScore(entity.visaFeasibilitySignal, recommendationWeights.visaFeasibility, 5),
-      careerAlignment: signalScore(entity.careerSignal, recommendationWeights.careerAlignment, 5),
+      affordability: signalScore(entity.affordabilitySignal, recommendationWeights.affordability),
+      visaFeasibility: signalScore(entity.visaFeasibilitySignal, recommendationWeights.visaFeasibility),
+      careerAlignment: signalScore(entity.careerSignal, recommendationWeights.careerAlignment),
       preference: preferenceScore(profile, entity.countryCode),
     };
     const rawScore = Object.values(components).reduce((sum, value) => sum + value, 0);
@@ -220,6 +240,10 @@ export function evaluateRecommendations(profile: Record<string, unknown>, entiti
       entityType: entity.entityType,
       title: entity.title,
       provider: entity.provider,
+      countryCode: entity.countryCode,
+      deadlineAt: entity.deadlineAt,
+      applicationUrl: entity.applicationUrl,
+      sourceFreshness: entity.sourceFreshness,
       state,
       score,
       scoreComponents: components,

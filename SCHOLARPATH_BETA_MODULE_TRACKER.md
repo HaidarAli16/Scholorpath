@@ -1,23 +1,40 @@
 # CandidRoute product tracker
 
-Updated: 13 August 2026
+Updated: 14 August 2026
 
 The 14 August beta framing has been removed. Current product truth now lives in [SCHOLARPATH_PRODUCT_STATUS.md](SCHOLARPATH_PRODUCT_STATUS.md).
 
 ## Immediate status
 
-Fresh verification on 13 August 2026: typecheck, lint, all 25 automated tests and the production build pass. Supabase migration parity is 36/36, schema lint is clean, and the protected admin control-plane schema is live. Commit `6da5126` is deployed as `dpl_Fqe6GYZCXzczYseCeBxNJGJ7QiXA` and aliased to `candidroute.vercel.app`.
+Fresh verification on 14 August 2026: typecheck, lint, all 26 automated tests and the production build pass. Git is clean and synchronized with `origin/main`. Supabase migration parity is 36/36, linked schema lint is clean, and the protected admin control-plane schema is live. The stable production URL is `https://candidroute.vercel.app`.
 
 | Area | Status | One-line truth |
 |---|---|---|
 | UI shell | Partial | All 29 annotated UX defects are closed at the target desktop viewport; cross-device and mobile acceptance remain. |
-| Supabase backend | Partial | Live schema is reachable; migration parity is 35/35, route-specific indexes are live, schema lint is clean and database cache-hit ratios are 100%. Two-account acceptance and remaining Advisor warnings remain. |
-| Opportunity ingestion | Partial | Official-source pipeline exists, but worldwide coverage needs source packs, parsers and review. |
+| Supabase backend | Partial | Live schema is reachable; migration parity is 36/36 and linked schema lint is clean. Advisors report no errors but 51 warnings; two-student isolation and staff-role acceptance remain. |
+| Opportunity ingestion | Partial | 63 sources exist, 61 are enabled and 45 have succeeded at least once; 18 currently record an error and only 5 approved candidates exist. |
 | Recommendation engine | Partial | The engine direction is correct, but it cannot be trusted until published catalogue coverage and golden-profile tests exist. |
 | Country intelligence | Partial | Architecture/UI direction exists; complete country facts are still missing. |
 | Institution directory | Partial | Database/UI direction exists; production university, campus, course and ranking data are still missing. |
-| Deployment | Done | Optimized production deployment is READY and public at `candidroute-taatuftech-1331s-projects.vercel.app`; home, robots, sitemap and core public APIs return 200. |
-| Admin and CMS | Code + DB verified | Admins can manage access/plans, core education content, ingestion, support, audit and settings from one protected control plane; authenticated visual acceptance remains. |
+| Deployment | Done | Optimized production is public at `candidroute.vercel.app`; home, auth, catalogue, country, institution and live-scholarship checks return 200, while anonymous admin access correctly returns 401. |
+| Admin and CMS | Partial | Core access, plan, education, ingestion, support, audit and settings controls exist. Authenticated visual acceptance, bulk review and relational editors for cities/facts/campuses/rankings/equivalencies/requirements/intakes/rules remain. |
+
+## Release audit - 14 August 2026
+
+| Check | Result | Evidence |
+|---|---|---|
+| Git | Done | Clean working tree; local `main` matches `origin/main`. |
+| Code quality | Done | Typecheck, lint, 26/26 tests and production build pass. |
+| Supabase migrations | Done | 36 local and 36 remote migrations; zero mismatch; linked schema lint clean. |
+| Production HTTP | Done | `/`, `/auth`, auth status, catalogue, countries, institutions and live scholarships return 200; anonymous admin API returns 401. |
+| Published catalogue | Blocked for release quality | Only 2 release-ready programmes and 3 release-ready scholarships are published. The release gate requires at least 10 current reviewed opportunities. |
+| Ingestion health | Partial | 63 sources, 61 enabled, 45 ever successful; latest 100 runs contain 79 no-change, 7 needs-review, 11 blocked and 3 failed. |
+| Review-to-publish proof | Missing | 699 candidates exist, 271 are pending, 5 approved and zero have `published_at`; the production pipeline has not yet proven candidate-to-catalogue publication. |
+| Recommendation quality | Missing release proof | Deterministic engine exists, but 30 golden-profile regression/fairness cases and adequate catalogue breadth are missing. |
+| Security acceptance | Partial | Protected API behavior and schema lint pass. Current Advisors report 0 errors and 51 warnings: 21 security and 30 performance, led by 20 authenticated SECURITY DEFINER grants, 25 overlapping permissive policies, 5 auth RLS init-plan findings and leaked-password protection being disabled. Two-user/staff isolation proof also remains. |
+| Billing | Not started | Free/Pro entitlement controls exist, but checkout, webhook, billing portal and payment-state reconciliation are not connected. |
+| Monitoring and communications | Partial | Application health is manually verifiable; production error monitoring, uptime alerts, support routing and transactional email delivery are not proven. |
+| Full student/admin journey | Needs live acceptance | Authentication and role-aware routing exist; a real-account assessment-to-report-to-task-to-application journey and authenticated admin publish journey still need recorded acceptance. |
 
 Admin acceptance correction: generic sign-in and OAuth callback redirects are now role-aware. Administrators default to `/admin`, staff default to `/operations`, students default to `/today`, and an explicit safe `next` destination still takes precedence. Commit `91cf709` is live as deployment `dpl_24s2b6DvVMkHjeMbqhuXhNan5nDw` at the stable alias.
 
@@ -40,11 +57,35 @@ Admin acceptance correction: generic sign-in and OAuth callback redirects are no
 
 ## Current blockers
 
-1. Build global official source packs and structured parsers.
-2. Review and publish enough current opportunities for real recommendations.
-3. Prove signed-in student and admin flows in browser.
-4. Complete Supabase security hardening.
-5. Monitor production latency and move the Vercel project-level function region to Singapore if the account exposes regional controls.
+1. Review and publish at least five more current official opportunities, then prove one candidate reaches the catalogue and recommendations.
+2. Add and pass 30 golden student profiles against versioned recommendation expectations.
+3. Record the full signed-in student journey and authenticated admin review/publish journey.
+4. Triage the 51 Supabase Advisor warnings, enable leaked-password protection and complete RLS role-isolation checks.
+5. Connect subscription checkout/webhooks and production monitoring, alerting and transactional email.
+
+## Ingestion and recommendation defect audit - 14 August 2026
+
+- Critical: 699 candidates contain zero normalized deadlines, funding types, award values, eligibility-country sets, degree levels or field families; 459 candidates carry validation errors and only 5 are approved.
+- Critical: the production report uses hard-coded pathway/intelligence models while live recommendations run later through a separate catalogue engine, so the first report and saved recommendations can disagree.
+- Critical: all 12 published recommendation rules cover only nationality, subject, experience and declared English status; the engine currently has no sourced grade threshold, tuition/budget, intake, document, language-score or programme-specific equivalency rules.
+- High: the generic catalogue adapter is labelled as `programme` and uses an EACEA-specific HTML-card parser across unrelated worldwide sources, contributing to 669 programme candidates versus only 30 scholarship candidates.
+- High: `html_detail` extraction produces only title/provider/country/URL/application-state/date mentions; it does not structurally extract the fields required by the publish and recommendation contracts.
+- High: the assessment returns before live recommendation evaluation, silently discards background evaluation failures and has no durable retry/outbox confirmation.
+- High: affordability is hard-coded by country, career signal is derived only from post-study months, and missing funding/country signals receive defaults; displayed percentages therefore have insufficient individual evidence.
+- High: recent ingestion health remains weak: 45 of 61 enabled sources have ever succeeded; current failures include 11 robots blocks, four 404s, one 403 and one unsafe target.
+- Medium: the worker has no parser fixture/unit suite, uses `@ts-nocheck`, applies a simplified robots parser and processes only one claimed run per invocation.
+- Medium: generated qualification rule values do not match the human-readable qualification values accepted by onboarding; grade normalization also checks `nationalities` while the profile field is `nationality`.
+
+### Recommendation/report remediation - 14 August 2026
+
+- Done: assessment, saved report, PDF, tasks and recommendation records now originate from one synchronous evaluation of the published Supabase catalogue; evaluation or persistence failures fail closed instead of silently returning a conflicting static result.
+- Done: the web report and PDF show the ranked opportunity list once. The separate audit area contains reproducibility metadata only, removing the duplicate recommendation presentation.
+- Done: PDF export ignores browser-supplied report/profile data and reloads the signed-in student's latest `pathway_reports` and `assessments` rows under RLS before generating the file.
+- Done live: migration `20260814090000_unify_recommendation_rules.sql` removed invented destination/universal-English checks, repaired normalized-grade rules and aligned generated qualification/field rules with onboarding values.
+- Done: missing rules, deadlines, funding, affordability, visa, career and preference signals receive zero points. Unknown information can no longer create an inflated match score.
+- Done live: the ingestion worker identifies itself as CandidRoute, records only actual inserts, fails on candidate-write errors, schedules source reviews correctly and extracts contextual deadline, funding, degree and field facts for detail pages without leaking catalogue-page facts into discovered records.
+- Verified: linked Supabase migration applied, `opportunity-ingest` redeployed, 9 sourced published rules remain after removing 3 generic/invented rules, and typecheck, lint, 29 tests and production build pass.
+- Remaining data-quality gate: the live catalogue still contains only 2 programmes and 3 scholarships. The engine is now internally consistent, but recommendation breadth cannot be called production-grade until more official records and programme-specific rules are published.
 
 ## Production hardening — 9 August 2026
 

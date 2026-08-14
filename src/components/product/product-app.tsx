@@ -533,7 +533,7 @@ function StudentReport({ handoff, directory, isPro }: { handoff: AssessmentHando
   const downloadPdf = async () => {
     setExportState("working");
     try {
-      const response = await fetch("/api/report/pdf", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profile, report }) });
+      const response = await fetch("/api/report/pdf", { method: "POST" });
       if (!response.ok) { const payload = await response.json().catch(() => null) as { error?: string } | null; throw new Error(payload?.error || "The PDF could not be generated."); }
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
@@ -562,7 +562,7 @@ function StudentReport({ handoff, directory, isPro }: { handoff: AssessmentHando
 
       <div className="report-view-toggle" role="group" aria-label="Report detail level"><button className={reportView === "summary" ? "active" : ""} onClick={() => setReportView("summary")}><Sparkles size={15} /> Quick view</button><button className={reportView === "details" ? "active" : ""} onClick={() => setReportView("details")}><Database size={15} /> Full evidence</button></div>
 
-      <nav className="report-index" aria-label="Report sections"><span>Jump to</span><a href="#readiness">Readiness</a><a href="#programme-intelligence">Programme checks</a><a href="#pathways">Pathways</a><a href="#actions">Action plan</a><ContextHelp title="Report snapshot" summary="This report is tied to the assessment answers, rules and source versions shown in its audit trail." details={["Reassessing creates a new version rather than silently changing this result.", "PDF export uses the same visible report data.", "Always recheck time-sensitive deadlines on the official source."]} /></nav>
+      <nav className="report-index" aria-label="Report sections"><span>Jump to</span><a href="#readiness">Readiness</a><a href="#pathways">Recommendations</a><a href="#actions">Action plan</a><ContextHelp title="Report snapshot" summary="This report is tied to the assessment answers, rules and source versions shown in its audit trail." details={["Reassessing creates a new version rather than silently changing this result.", "PDF export uses the same saved report data.", "Always recheck time-sensitive deadlines on the official source."]} /></nav>
 
       <section className="report-priority">
         <span><Target size={20} /></span>
@@ -581,8 +581,8 @@ function StudentReport({ handoff, directory, isPro }: { handoff: AssessmentHando
         </div>
       </section>
 
-      {intelligence && <section className="report-section intelligence-map" id="programme-intelligence">
-        <div className="report-section__head"><div><span className="product-eyebrow">Programme-level intelligence</span><h2>Every requirement, not one vague match score</h2></div><p>{intelligence.audit.evaluatedRules} rules evaluated · {intelligence.audit.unknownRules} remain open</p></div>
+      {intelligence && <section className="report-section intelligence-map" id="pathways">
+        <div className="report-section__head"><div><span className="product-eyebrow">Your recommendations</span><h2>One ranked list, with every open condition visible</h2></div><p>{intelligence.audit.evaluatedRules} rules evaluated · {intelligence.audit.unknownRules} remain open</p></div>
         <div className="intelligence-opportunities">{intelligence.opportunities.slice(0, isPro ? undefined : FREE_REPORT_LIMITS.opportunities).map((item, index) => <article key={item.id}>
           <header><span>{String(index + 1).padStart(2, "0")}</span><div><small>{item.country} · {item.kind}</small><h3>{item.title}</h3><p>{item.provider}</p></div><div className="intelligence-priority"><strong>{item.researchPriority}</strong><small>research priority</small><Status text={item.state === "aligned" ? "Aligned" : item.state === "blocked" ? "Blocked" : item.state === "stale" ? "Source review due" : "Conditional"} /></div></header>
           <div className="intelligence-components">{Object.entries(item.components).map(([key, value]) => <span key={key}><small>{key}</small><i><b style={{ width: `${value}%` }} /></i><strong>{value}</strong></span>)}</div>
@@ -611,16 +611,6 @@ function StudentReport({ handoff, directory, isPro }: { handoff: AssessmentHando
       <section className="report-section report-snapshot-section">
         <div className="report-section__head"><div><span className="product-eyebrow">Validated understanding</span><h2>The facts driving this report</h2></div><Link href="/">Reassess <RefreshCw size={14} /></Link></div>
         <div className="report-snapshot">{Object.entries(report.snapshot).map(([key, value]) => <article key={key}><span>{key}</span><strong>{value}</strong><small>{key === "academic" ? profile.institution : key === "goal" ? profile.destinationPreference === "suggest" ? "Destination selected by evidence" : `${profile.destinationPreference} preference` : "Student-declared fact"}</small></article>)}</div>
-      </section>
-
-      <section className="report-section report-pathway-section" id="pathways">
-        <div className="report-section__head"><div><span className="product-eyebrow">Pathway comparison</span><h2>Three lanes, with every open condition visible</h2></div><p>Strong means research priority—not guaranteed success.</p></div>
-        <div className="report-pathways">{report.pathways.slice(0, isPro ? undefined : 3).map((pathway, index) => <article key={pathway.id} className={index === 0 ? "is-primary" : ""}>
-          <header><span>{String(index + 1).padStart(2, "0")}</span><div><small>{pathway.strength} research lane</small><h3>{pathway.title}</h3><p>{pathway.subtitle}</p></div><Status text={pathway.state === "conditional" ? "Conditional" : pathway.state === "unknown" ? "Needs verification" : "Not recommended"} /></header>
-          <div><h4>Why it surfaced</h4>{pathway.why.map((reason) => <p key={reason}><Check size={14} />{reason}</p>)}</div>
-          <div className="report-pathway__conditions"><h4>Open conditions</h4>{pathway.conditions.length ? pathway.conditions.map((condition) => <p key={condition}><AlertCircle size={14} />{condition}</p>) : <p><Check size={14} />No shared profile condition is open.</p>}</div>
-          <footer><span><small>Next move</small><strong>{pathway.nextAction}</strong></span><a href={pathway.sourceUrl} target="_blank" rel="noreferrer">Research source <ExternalLink size={14} /></a></footer>
-        </article>)}</div>
       </section>
 
       {isPro && <section className="report-section report-live-section">
