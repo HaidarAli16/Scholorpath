@@ -85,6 +85,7 @@ Admin acceptance correction: generic sign-in and OAuth callback redirects are no
 - Done: missing rules, deadlines, funding, affordability, visa, career and preference signals receive zero points. Unknown information can no longer create an inflated match score.
 - Done live: the ingestion worker identifies itself as CandidRoute, records only actual inserts, fails on candidate-write errors, schedules source reviews correctly and extracts contextual deadline, funding, degree and field facts for detail pages without leaking catalogue-page facts into discovered records.
 - Verified: linked Supabase migration applied, `opportunity-ingest` redeployed, 9 sourced published rules remain after removing 3 generic/invented rules, and typecheck, lint, 29 tests and production build pass.
+- Deployed: revision `a3d447f` is live at `https://candidroute.vercel.app`; public home/catalogue return 200 and anonymous PDF export correctly returns 401.
 - Remaining data-quality gate: the live catalogue still contains only 2 programmes and 3 scholarships. The engine is now internally consistent, but recommendation breadth cannot be called production-grade until more official records and programme-specific rules are published.
 
 ## Production hardening — 9 August 2026
