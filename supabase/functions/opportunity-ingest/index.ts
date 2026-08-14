@@ -135,6 +135,13 @@ function tagText(html: string, tag: string) {
   return match ? stripHtml(match[1]).slice(0, 300) : "";
 }
 
+function metaContent(html: string, key: string) {
+  const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = html.match(new RegExp(`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content=["']([^"']+)["']`, "i"))
+    || html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${escaped}["']`, "i"));
+  return match ? decodeEntities(match[1]).replace(/\s+/g, " ").trim().slice(0, 160) : "";
+}
+
 function canonicalLink(html: string, fallback: string) {
   const match = html.match(/<link[^>]+rel=["'][^"']*canonical[^"']*["'][^>]+href=["']([^"']+)["']/i) || html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["'][^"']*canonical/i);
   try { return removeTrackingParameters(new URL(match?.[1] || fallback, fallback)).toString(); }
@@ -446,6 +453,9 @@ async function runWorker(client: ReturnType<typeof createClient>, run: Run) {
     return { runId: run.id, status: "no_change", candidates: 0 };
   }
   const title = contentType.includes("html") ? (tagText(content, "h1") || tagText(content, "title")) : source.owner_name;
+  const providerName = contentType.includes("html")
+    ? (metaContent(content, "og:site_name") || metaContent(content, "application-name") || source.owner_name)
+    : source.owner_name;
   const pageUrl = canonicalLink(content, fetched.url || target.toString());
   const dates = extractDates(normalizedText);
   const state = applicationState(normalizedText, adapter.config);
@@ -477,12 +487,12 @@ async function runWorker(client: ReturnType<typeof createClient>, run: Run) {
     const entityType = inferType(item.label, item.url, adapter.entity_type);
     const isDiscovery = adapter.kind === "html_catalogue" || adapter.kind === "sitemap";
     const facts = isDiscovery ? {} : structuredFacts(normalizedText, entityType);
-    const normalized: Json = { title: item.label || title, provider_name: source.owner_name, country_code: source.country_code, canonical_url: item.url, application_url: item.url, entity_type: entityType, application_state: isDiscovery ? "unknown" : state, date_mentions: isDiscovery ? [] : dates, source_page_title: title, parser_version: adapter.parser_version, discovery_only: isDiscovery, ...facts };
+    const normalized: Json = { title: item.label || title, provider_name: providerName, country_code: source.country_code, canonical_url: item.url, application_url: item.url, entity_type: entityType, application_state: isDiscovery ? "unknown" : state, date_mentions: isDiscovery ? [] : dates, source_page_title: title, parser_version: adapter.parser_version, discovery_only: isDiscovery, ...facts };
     const candidateHash = await sha256(JSON.stringify(normalized));
     const key = externalKey(item.url);
     const { data: prior } = await client.from("opportunity_candidates").select("normalized_data").eq("source_id", source.id).eq("external_key", key).neq("content_hash", candidateHash).order("created_at", { ascending: false }).limit(1).maybeSingle();
     const { data: inserted, error } = await client.from("opportunity_candidates")
-      .upsert({ run_id: run.id, source_id: source.id, snapshot_id: snapshot.id, entity_type: entityType, external_key: key, canonical_url: item.url, title: String(normalized.title), provider_name: source.owner_name, country_code: source.country_code, normalized_data: normalized, content_hash: candidateHash, validation_errors: validationErrors(normalized), change_summary: changeSummary((prior?.normalized_data as Json | null) || null, normalized), review_state: "pending" }, { onConflict: "canonical_url,content_hash", ignoreDuplicates: true })
+      .upsert({ run_id: run.id, source_id: source.id, snapshot_id: snapshot.id, entity_type: entityType, external_key: key, canonical_url: item.url, title: String(normalized.title), provider_name: providerName, country_code: source.country_code, normalized_data: normalized, content_hash: candidateHash, validation_errors: validationErrors(normalized), change_summary: changeSummary((prior?.normalized_data as Json | null) || null, normalized), review_state: "pending" }, { onConflict: "canonical_url,content_hash", ignoreDuplicates: true })
       .select("id");
     if (error) throw new Error(`candidate_write_failed:${error.message}`);
     if (inserted?.length) candidateCount += 1;
@@ -508,6 +518,8 @@ Deno.serve(async (req) => {
     if (error) return response({ error: `scheduler_configuration_failed:${error.message}` }, 500);
     return response({ ok: true, status: "scheduler_configured" });
   }
+  const { data: automation, error: automationError } = await client.rpc("auto_publish_high_confidence_scholarships", { p_limit: 50 });
+  if (automationError) console.error("scholarship_auto_publish_failed", automationError.message);
   if (body.enqueueDue) await client.rpc("enqueue_due_ingestion_sources", { p_limit: Math.min(Math.max(body.limit || 25, 1), 100) });
   let run: Run | null = null;
   if (body.runId) {
@@ -517,7 +529,7 @@ Deno.serve(async (req) => {
     const { data } = await client.rpc("claim_ingestion_run", { p_worker_id: `edge-${crypto.randomUUID()}` });
     run = data as Run | null;
   }
-  if (!run) return response({ ok: true, status: "idle" });
+  if (!run) return response({ ok: true, status: "idle", automation: automationError ? { error: "unavailable" } : automation });
   try {
     return response({ ok: true, ...(await runWorker(client, run)) });
   } catch (error) {

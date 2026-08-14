@@ -28,7 +28,7 @@ export async function GET() {
   const { supabase, user, admin } = await adminContext();
   if (!supabase || !user) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   if (!admin) return NextResponse.json({ error: "Super Admin access required." }, { status: 403 });
-  const candidateSelect = "id,run_id,source_id,snapshot_id,entity_type,external_key,canonical_url,title,provider_name,country_code,normalized_data,validation_errors,change_summary,review_state,structured_score,reviewed_at,review_notes,published_at,created_at,source_records(owner_name,canonical_url)";
+  const candidateSelect = "id,run_id,source_id,snapshot_id,entity_type,external_key,canonical_url,title,provider_name,country_code,normalized_data,validation_errors,change_summary,review_state,structured_score,automation_score,automation_decision,automation_reasons,auto_evaluated_at,reviewed_at,review_notes,published_at,created_at,source_records(owner_name,canonical_url)";
   const [sources, adapters, runs, pendingCandidates, approvedCandidates, sourceHealth] = await Promise.all([
     supabase.from("ingestion_sources").select("source_id,adapter_id,enabled,priority,schedule_minutes,next_fetch_at,last_attempt_at,last_success_at,consecutive_failures,robots_state,last_http_status,last_error,source_records(id,canonical_url,owner_name,country_code,status),ingestion_adapters(id,adapter_key,name,kind,entity_type,parser_version)").order("priority").order("next_fetch_at").limit(200),
     supabase.from("ingestion_adapters").select("id,adapter_key,name,kind,entity_type,description,allowed_hosts,parser_version,enabled,updated_at").order("name"),

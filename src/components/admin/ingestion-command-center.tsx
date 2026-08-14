@@ -261,6 +261,12 @@ function Review({ candidates, total, busy, act }: {
                 <Database size={16} />
                 <span><strong>{item.change_summary?.kind || "new"} candidate</strong><small>{item.change_summary?.changed_fields?.join(", ") || "Initial capture"}</small></span>
               </div>
+              {item.automation_decision === "human_review" && (
+                <div className="candidate-errors">
+                  <AlertTriangle size={15} />
+                  <span><strong>Human check required · automation {item.automation_score ?? 0}/100</strong><small>{item.automation_reasons?.join(" · ") || "A source-safety gate requires review."}</small></span>
+                </div>
+              )}
               {item.validation_errors.length > 0 ? (
                 <div className="candidate-errors">
                   <AlertTriangle size={15} />

@@ -2,7 +2,7 @@
 
 Updated: 14 August 2026
 
-Verdict: the product shell, protected admin area, Supabase-backed ingestion architecture and first official-source pipeline exist. The product is not complete yet because the opportunity catalogue is still review-heavy and not broad enough to power a best-in-class recommendation engine.
+Verdict: the product shell, protected admin area and Supabase-backed official-source pipeline are live. High-confidence official scholarships now publish automatically; the catalogue is still not broad enough for a best-in-class recommendation engine.
 
 ## Current truth
 
@@ -23,7 +23,7 @@ Verdict: the product shell, protected admin area, Supabase-backed ingestion arch
 | Student report | Partial | Report UI concept and pathway sections exist | Live sourced report from published catalogue, evidence impact explanations |
 | Recommendation engine | Partial | Deterministic eligibility flow and explainability direction exist | Broad published data, golden-profile regression, ranking weights, fairness checks |
 | Task and deadline system | Partial | Task/Kanban UI direction exists | Live generated tasks from missing evidence, impact scoring, deadline reminders |
-| Opportunity ingestion | Partial | 405 source records, two daily secondary indexes, normalized URL deduplication, exact-host official crawling, snapshots and review candidates | Drain queue, enrich fields and prove publish workflow |
+| Opportunity ingestion | Partial | 405+ sources, daily discovery, normalized URL deduplication, exact-host crawling, snapshots and deterministic auto-publication | Expand structured eligibility/funding extraction and catalogue breadth |
 | Admin command center | Partial | Protected Super Admin command center with source/review/run tabs | Cleaner admin-only IA, reviewer workflow polish, signed-in browser acceptance |
 | Country intelligence | Partial | Schema/UI direction exists | Full country profiles: costs, visa, work rights, safety, healthcare, halal/community, salaries |
 | Institution directory | Partial | Directory UI/database plus daily ROR identity enrichment; 12/12 current institutions uniquely matched | Broader production university catalogue, campuses, courses, intakes and entry equivalence |
@@ -41,8 +41,10 @@ flowchart LR
   C --> D["Snapshot + content hash"]
   D --> E["Deterministic parser"]
   E --> F["Opportunity candidates"]
-  F --> G["Human review and enrichment"]
-  G --> H["Published catalogue"]
+  F --> G{"Deterministic evidence gate"}
+  G -->|"High-confidence official"| H["Auto-published catalogue"]
+  G -->|"Low, conflicting or non-official"| R["Human review with reasons"]
+  R --> H
   H --> I["Eligibility and recommendation engine"]
   I --> J["Student report, Discover, Today and Tasks"]
 ```
@@ -75,7 +77,7 @@ flowchart LR
 
 ## What blocks a complete product
 
-1. The published catalogue is too small for serious recommendations even though official-source discovery is now broad.
+1. The published catalogue is still too small for serious recommendations even though official-source discovery and high-confidence auto-publication are live.
 2. Candidate records need structured fields before they can influence eligibility.
 3. The review-to-publish workflow needs a signed-in admin acceptance pass.
 4. Country intelligence and institution directory need production data, not demo coverage.
@@ -98,3 +100,10 @@ flowchart LR
 - `npm run build`: passed.
 - `npm run typecheck`: passed after build generated `.next/types`.
 - `npm test`: passed, 29 tests.
+
+## Scholarship publication automation — 14 August 2026
+
+- High-confidence exact-official candidates now publish without daily admin approval; a score of 80 plus all safety gates is required.
+- Low-confidence, conflicting, expired, insecure and secondary-index records remain in human review with explicit reasons.
+- Current acceptance: 3 automatically published candidates, 6 total published scholarships and duplicate application URLs blocked.
+- Verification: 47/47 migration parity, zero linked schema-lint errors, successful production build and 29/29 passing tests.

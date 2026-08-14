@@ -18,7 +18,7 @@ export type IngestionRun = {
 export type OpportunityCandidate = {
   id: string; entity_type: "programme" | "scholarship"; canonical_url: string; title: string; provider_name: string; country_code?: string | null;
   normalized_data: Record<string, unknown>; validation_errors: string[]; change_summary: { kind?: string; changed_fields?: string[] };
-  review_state: string; structured_score?: number | null; reviewed_at?: string | null; review_notes?: string | null; published_at?: string | null; created_at: string;
+  review_state: string; structured_score?: number | null; automation_score?: number | null; automation_decision?: "auto_published" | "human_review" | "duplicate" | null; automation_reasons?: string[]; auto_evaluated_at?: string | null; reviewed_at?: string | null; review_notes?: string | null; published_at?: string | null; created_at: string;
   source_records: { owner_name: string; canonical_url: string } | null;
 };
 

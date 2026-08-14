@@ -6,7 +6,7 @@ The 14 August beta framing has been removed. Current product truth now lives in 
 
 ## Immediate status
 
-Fresh verification on 14 August 2026: typecheck, lint, all 29 automated tests and the production build pass. Supabase migration parity is 42/42, linked schema lint is clean, and the protected admin control-plane schema is live. The stable production URL is `https://candidroute.vercel.app`.
+Fresh verification on 14 August 2026: the deterministic scholarship auto-publication gate is live. Three high-confidence official records were published automatically, taking the scholarship catalogue from 3 to 6; all weaker records are classified with visible human-review reasons instead of being silently blocked. Final code/build verification is recorded below.
 
 | Area | Status | One-line truth |
 |---|---|---|
@@ -25,11 +25,11 @@ Fresh verification on 14 August 2026: typecheck, lint, all 29 automated tests an
 |---|---|---|
 | Git | Done | Clean working tree; local `main` matches `origin/main`. |
 | Code quality | Done | Typecheck, lint, 26/26 tests and production build pass. |
-| Supabase migrations | Done | 42 local and 42 remote migrations; zero mismatch; linked schema lint clean. |
+| Supabase migrations | Done | Auto-publication, notification repair, robots alignment, queue advancement and non-official classification migrations are live; final parity check is recorded below. |
 | Production HTTP | Done | `/`, `/auth`, auth status, catalogue, countries, institutions and live scholarships return 200; anonymous admin API returns 401. |
-| Published catalogue | Blocked for release quality | Only 2 release-ready programmes and 3 release-ready scholarships are published. The release gate requires at least 10 current reviewed opportunities. |
+| Published catalogue | Partial | 2 programmes and 6 scholarships are published; 3 scholarships were promoted automatically by the new evidence gate. Breadth remains below the quality target. |
 | Ingestion health | Partial | 301 sources and 275 assignments exist, 271 enabled. The new daily discovery rollout is draining 94 queued runs; first acceptance produced 86 new official URLs and 11 structured scholarship candidates. |
-| Review-to-publish proof | Missing | 711 candidates exist, 283 are pending, 5 approved and zero have `published_at`; the production pipeline has not yet proven candidate-to-catalogue publication. |
+| Review-to-publish proof | Done | Candidate-to-catalogue publication is proven live: 3 high-confidence official scholarship candidates auto-published; remaining candidates carry explicit human-review reasons. |
 | Recommendation quality | Missing release proof | Deterministic engine exists, but 30 golden-profile regression/fairness cases and adequate catalogue breadth are missing. |
 | Security acceptance | Partial | Protected API behavior and schema lint pass. Current Advisors report 0 errors and 51 warnings: 21 security and 30 performance, led by 20 authenticated SECURITY DEFINER grants, 25 overlapping permissive policies, 5 auth RLS init-plan findings and leaked-password protection being disabled. Two-user/staff isolation proof also remains. |
 | Billing | Not started | Free/Pro entitlement controls exist, but checkout, webhook, billing portal and payment-state reconciliation are not connected. |
@@ -165,3 +165,12 @@ Admin acceptance correction: generic sign-in and OAuth callback redirects are no
 - Browser verified on Today, Recommendations, and Countries: Haidar/live workspace appears directly, recommendations are populated without a loading card, directory data is present, and no recent console or hydration errors were recorded.
 - Production build passed after clean generated-cache rebuild.
 - Code checks: lint, typecheck, 25/25 tests and production build pass.
+
+## Deterministic scholarship auto-publication — 14 August 2026
+
+- Done live: exact official-source candidates scoring at least 80 publish automatically when HTTPS, source health, availability, title, funding and validation gates pass.
+- Done live: missing deadlines may publish only when the official page explicitly says open or rolling; students see **Deadline not confirmed** and the source is rechecked daily.
+- Done live: expired, insecure, conflicting, weakly structured or non-official candidates go to human review with an automation score and machine-readable reasons.
+- Done live: application-URL uniqueness prevents duplicate catalogue scholarships; only untriaged rows are evaluated, so rejected records cannot starve the queue.
+- Acceptance result: 3 official candidates auto-published and the live scholarship catalogue increased from 3 to 6. The notification trigger defect found during acceptance was repaired.
+- Verified: 47 local/remote migrations match, linked database lint has zero errors, typecheck/lint/build pass and all 29 automated tests pass.
