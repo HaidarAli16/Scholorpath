@@ -36,13 +36,13 @@ export async function GET() {
 
   const programmesMap = new Map();
   if (programmeIds.length > 0) {
-    const { data: progs } = await supabase.from("programmes").select("id,title,institution_name,country_code,deadline_at,application_url").in("id", programmeIds);
+    const { data: progs } = await supabase.from("programmes").select("id,title,institution_name,country_code,deadline_at,application_url,publish_tier").in("id", programmeIds);
     (progs || []).forEach(p => programmesMap.set(p.id, p));
   }
 
   const scholarshipsMap = new Map();
   if (scholarshipIds.length > 0) {
-    const { data: schols } = await supabase.from("scholarships").select("id,title,provider_name,country_code,deadline_at,application_url").in("id", scholarshipIds);
+    const { data: schols } = await supabase.from("scholarships").select("id,title,provider_name,country_code,deadline_at,application_url,publish_tier").in("id", scholarshipIds);
     (schols || []).forEach(s => scholarshipsMap.set(s.id, s));
   }
 
@@ -62,7 +62,8 @@ export async function GET() {
       open_checks: c.open_checks,
       next_actions: c.next_actions,
       deadline_at: entity?.deadline_at,
-      application_url: entity?.application_url
+      application_url: entity?.application_url,
+      publish_tier: entity?.publish_tier
     };
   });
 

@@ -20,6 +20,7 @@ export type CatalogueItem = {
   last_verified_at?: string | null;
   next_review_at?: string | null;
   attributes?: Record<string, unknown> | null;
+  publish_tier?: string | null;
 };
 
 export type RecommendationComponent = {
@@ -152,6 +153,7 @@ export function mapCatalogueItems(items: CatalogueItem[], recommendations: Recom
   return items.map((item) => {
       const result = resultMap.get(`${item.entityType}:${item.id}`);
       const reviewDue = !item.last_verified_at || Boolean(item.next_review_at && new Date(item.next_review_at).getTime() < now);
+      const isProvisional = item.attributes?.publish_tier === 'provisional' || item.publish_tier === 'provisional';
       const reasons = result?.reasons?.length ? result.reasons : ["Official record is published", "Complete your profile to calculate personal alignment"];
       const condition = result?.failed_gates?.[0] || result?.open_checks?.[0] || result?.next_actions?.[0] || "No unresolved condition is recorded.";
       const code = item.country_code?.toUpperCase() || "INT";
@@ -168,12 +170,14 @@ export function mapCatalogueItems(items: CatalogueItem[], recommendations: Recom
         value: valueLabel(item),
         match: matchLabel(result?.state),
         matchScore: result ? Math.max(0, Math.min(100, Math.round(Number(result.final_score) || 0))) : 0,
-        freshness: reviewDue ? "Review due" : "Verified",
+        freshness: isProvisional ? "Provisional" as const : (reviewDue ? "Review due" as const : "Verified" as const),
         reasons: reasons.slice(0, 3),
         condition,
         sourceUrl: item.application_url ?? undefined,
         lastVerifiedAt: item.last_verified_at ?? undefined,
         saved: saved.has(`${item.entityType}:${item.id}`),
+        disclaimer: isProvisional ? 'Some details require verification from the official source.' : undefined,
+        publishTier: item.publish_tier || undefined,
       };
   });
 }

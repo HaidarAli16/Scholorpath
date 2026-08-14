@@ -11,12 +11,14 @@ export type Opportunity = {
   value: string;
   match: "Confirmed match" | "Conditional match" | "Needs verification";
   matchScore?: number;
-  freshness: "Verified" | "Review due";
+  freshness: "Verified" | "Review due" | "Provisional";
   reasons: string[];
   condition: string;
   sourceUrl?: string;
   lastVerifiedAt?: string;
   saved?: boolean;
+  disclaimer?: string;
+  publishTier?: string;
 };
 
 export const opportunities: Opportunity[] = [

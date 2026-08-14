@@ -56,4 +56,17 @@ describe("live catalogue mapping", () => {
     expect(result.freshness).toBe("Review due");
     expect(result.match).toBe("Needs verification");
   });
+
+  it("labels official records with incomplete facts as provisional", () => {
+    const [result] = mapCatalogueItems(
+      [{ ...programme, publish_tier: "provisional", attributes: { disclaimer: "Some details require verification from the official source." } }],
+      [],
+      [],
+      new Date("2026-08-03T00:00:00Z").getTime(),
+    );
+
+    expect(result.freshness).toBe("Provisional");
+    expect(result.publishTier).toBe("provisional");
+    expect(result.disclaimer).toBe("Some details require verification from the official source.");
+  });
 });

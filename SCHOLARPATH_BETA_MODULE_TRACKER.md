@@ -174,3 +174,11 @@ Admin acceptance correction: generic sign-in and OAuth callback redirects are no
 - Done live: application-URL uniqueness prevents duplicate catalogue scholarships; only untriaged rows are evaluated, so rejected records cannot starve the queue.
 - Acceptance result: 3 official candidates auto-published and the live scholarship catalogue increased from 3 to 6. The notification trigger defect found during acceptance was repaired.
 - Verified: 47 local/remote migrations match, linked database lint has zero errors, typecheck/lint/build pass and all 29 automated tests pass.
+
+## Two-tier official scholarship catalogue — 14 August 2026
+
+- Done live: verified and provisional publication tiers preserve strict official-source, HTTPS, non-expired, usable-title and duplicate safety gates.
+- Done live: incomplete funding, award, deadline and application-state facts may publish provisionally with visible student warnings and official-source links.
+- Acceptance: 119 scholarships are live — 6 verified and 113 provisional; 59 broken or non-official candidates remain held and zero candidates are untriaged.
+- Corrected before release: allowed the provisional automation state, removed an ambiguous RPC overload, restored least-privilege grants, blocked bad robots/run states and stopped held rows being rescored every minute.
+- Verification: 30/30 tests, typecheck and lint pass; linked database lint reports zero errors.

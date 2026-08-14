@@ -20,13 +20,13 @@ const loadCatalogue = unstable_cache(async ({ type, country, q, limit }: Catalog
   if (!supabase) throw new Error("Catalogue is unavailable.");
 
   const programmeQuery = () => {
-    let query = supabase.from("programmes").select("id,slug,title,institution_name,country_code,level,field_family,intake_label,deadline_at,deadline_timezone,tuition_amount,tuition_currency,application_url,last_verified_at,next_review_at,attributes").eq("state", "published").order("deadline_at", { ascending: true, nullsFirst: false }).limit(limit);
+    let query = supabase.from("programmes").select("id,slug,title,institution_name,country_code,level,field_family,intake_label,deadline_at,deadline_timezone,tuition_amount,tuition_currency,application_url,last_verified_at,next_review_at,attributes,publish_tier").eq("state", "published").order("deadline_at", { ascending: true, nullsFirst: false }).limit(limit);
     if (country) query = query.eq("country_code", country.toUpperCase());
     if (q) query = query.ilike("title", `%${q.replaceAll("%", "\\%").replaceAll("_", "\\_")}%`);
     return query;
   };
   const scholarshipQuery = () => {
-    let query = supabase.from("scholarships").select("id,slug,title,provider_name,country_code,cycle_label,opens_at,deadline_at,deadline_timezone,award_type,award_value,application_url,last_verified_at,next_review_at,attributes").eq("state", "published").order("deadline_at", { ascending: true, nullsFirst: false }).limit(limit);
+    let query = supabase.from("scholarships").select("id,slug,title,provider_name,country_code,cycle_label,opens_at,deadline_at,deadline_timezone,award_type,award_value,application_url,last_verified_at,next_review_at,attributes,publish_tier").eq("state", "published").order("deadline_at", { ascending: true, nullsFirst: false }).limit(limit);
     if (country) query = query.eq("country_code", country.toUpperCase());
     if (q) query = query.ilike("title", `%${q.replaceAll("%", "\\%").replaceAll("_", "\\_")}%`);
     return query;
