@@ -31,12 +31,9 @@ export async function POST(request: Request) {
       .eq("user_id", user.id)
       .single();
     if (assessmentError || !assessment) return NextResponse.json({ error: "The saved assessment for this report is unavailable." }, { status: 404 });
-    const { data: entitlement } = await supabase.from("subscription_entitlements").select("plan_code,status,current_period_end").eq("user_id", user.id).maybeSingle();
-    const periodValid = !entitlement?.current_period_end || new Date(entitlement.current_period_end).getTime() > Date.now();
-    const isPro = entitlement?.plan_code === "pro" && ["active", "trialing"].includes(entitlement.status) && periodValid;
     const profile = assessment.answers as Partial<AssessmentInput>;
     const report = storedReport.report as unknown as AssessmentReport;
-    const bytes = await buildPathwayReportPdf(profile, report, { access: isPro ? "pro" : "free" });
+    const bytes = await buildPathwayReportPdf(profile, report, { access: "pro" });
     const firstName = String(profile.firstName || "Student").replace(/[^a-z0-9_-]+/gi, "-").replace(/^-|-$/g, "") || "Student";
     return new NextResponse(Buffer.from(bytes), { headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="CandidRoute-${firstName}-Pathway-Report.pdf"`, "Cache-Control": "private, no-store" } });
   } catch {

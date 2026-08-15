@@ -6,9 +6,8 @@ import { ProductApp } from "@/components/product/product-app";
 import { canAccessAdmin, canAccessOperations, requiresStudentSession, type AppRole } from "@/lib/auth/access";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { loadProductBootstrap, type ProductBootstrap } from "@/lib/product/server-bootstrap";
-import type { ProductAccess } from "@/lib/product/entitlements";
+import { AUTHENTICATED_BETA_ACCESS, type ProductAccess } from "@/lib/product/entitlements";
 
 const routes: Record<string, string> = {
   today: "today",
@@ -54,17 +53,12 @@ export default async function PlatformRoute({ params }: { params: Promise<{ slug
     if (needsAccount && !user) redirect(`/auth?next=${encodeURIComponent(pathname)}`);
 
     if (user) {
-      const admin = createSupabaseAdminClient();
-      const [loadedBootstrap, entitlementResult, rolesResult] = await Promise.all([
+      const [loadedBootstrap, rolesResult] = await Promise.all([
         loadProductBootstrap(supabase!, user, activeModule),
-        (admin ?? supabase!).from("subscription_entitlements").select("plan_code,status,current_period_end").eq("user_id", user.id).maybeSingle(),
         supabase!.from("user_roles").select("role").eq("user_id", user.id),
       ]);
       bootstrap = loadedBootstrap;
-      const entitlement = entitlementResult.data;
-      const periodValid = !entitlement?.current_period_end || new Date(entitlement.current_period_end).getTime() > Date.now();
-      const proActive = entitlement?.plan_code === "pro" && ["active", "trialing"].includes(entitlement.status) && periodValid;
-      initialAccess = { plan: proActive ? "pro" : "free", active: proActive };
+      initialAccess = AUTHENTICATED_BETA_ACCESS;
       if (rolesResult.error && (activeModule === "operations" || activeModule === "admin")) redirect("/access-denied?reason=role-check");
       viewerRoles = (rolesResult.data ?? []).map((row) => row.role as AppRole);
       if (activeModule === "admin" && !canAccessAdmin(viewerRoles)) redirect("/access-denied?area=admin");
