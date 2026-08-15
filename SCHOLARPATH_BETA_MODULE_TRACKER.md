@@ -1,6 +1,6 @@
 # CandidRoute product tracker
 
-Updated: 14 August 2026
+Updated: 15 August 2026
 
 The 14 August beta framing has been removed. Current product truth now lives in [SCHOLARPATH_PRODUCT_STATUS.md](SCHOLARPATH_PRODUCT_STATUS.md).
 
@@ -187,3 +187,9 @@ Admin acceptance correction: generic sign-in and OAuth callback redirects are no
 
 - Fixed: Pro access now refreshes from the private no-store entitlement endpoint on navigation and browser focus, so an admin upgrade unlocks an already-open student workspace.
 - Verified live data: `haidarjutt16@gmail.com` has plan `pro`, status `active`, and no expiry; no entitlement data is taken from user-editable metadata.
+
+## Authenticated beta Pro access - 15 August 2026
+
+- Done live: every server-authenticated beta tester receives temporary Pro access across the workspace, Plan screen, entitlement refresh and PDF export; entitlement billing enforcement remains intentionally disabled until billing launches.
+- Anonymous users remain Free and the private entitlement endpoint returns 401 without a session.
+- Verified: lint, typecheck, 32/32 tests and the optimized production build pass. Deployment `dpl_CrqgojPKqCv5kKGzfognN6Xjg41N` is Ready and assigned to `https://candidroute.vercel.app`; server functions run in `sin1`.
