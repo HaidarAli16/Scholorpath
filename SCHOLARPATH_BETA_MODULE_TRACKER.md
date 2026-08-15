@@ -182,3 +182,8 @@ Admin acceptance correction: generic sign-in and OAuth callback redirects are no
 - Acceptance: 119 scholarships are live — 6 verified and 113 provisional; 59 broken or non-official candidates remain held and zero candidates are untriaged.
 - Corrected before release: allowed the provisional automation state, removed an ambiguous RPC overload, restored least-privilege grants, blocked bad robots/run states and stopped held rows being rescored every minute.
 - Verification: 30/30 tests, typecheck and lint pass; linked database lint reports zero errors.
+
+## Live entitlement refresh - 15 August 2026
+
+- Fixed: Pro access now refreshes from the private no-store entitlement endpoint on navigation and browser focus, so an admin upgrade unlocks an already-open student workspace.
+- Verified live data: `haidarjutt16@gmail.com` has plan `pro`, status `active`, and no expiry; no entitlement data is taken from user-editable metadata.

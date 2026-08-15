@@ -99,6 +99,7 @@ export function ProductApp({ module, viewerRoles = [], ...initial }: ProductAppP
 
 function StudentProductApp({ module, viewerRoles = [], initialAccess = { plan: "free", active: false }, initialWorkspace, initialHandoff, initialOpportunities, initialRecommendations, initialDirectory }: ProductAppProps) {
   const pathname = usePathname();
+  const [access, setAccess] = useState<ProductAccess>(initialAccess);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [query, setQuery] = useState("");
   const [commandOpen, setCommandOpen] = useState(false);
@@ -112,10 +113,26 @@ function StudentProductApp({ module, viewerRoles = [], initialAccess = { plan: "
   const workspaceInitials = workspaceName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "SP";
   const canOperate = viewerRoles.some((role) => ["research_operator", "research_reviewer", "support", "admin"].includes(role));
   const isAdmin = viewerRoles.includes("admin");
-  const isPro = hasProAccess(initialAccess);
+  const isPro = hasProAccess(access);
   const premiumModules = new Set(["discover", "recommendations", "countries", "institutions", "portfolio", "applications", "workspace", "documents", "writing", "funding", "offers", "opportunity"]);
   const showSubscriptionGate = backend.authenticated && !isPro && premiumModules.has(module);
   const publicCatalogueLive = !backend.authenticated && (catalogue.mode === "live" || catalogue.mode === "live-discovery");
+
+  useEffect(() => { setAccess(initialAccess); }, [initialAccess]);
+
+  useEffect(() => {
+    if (!backend.authenticated) return;
+    let active = true;
+    const refreshAccess = () => {
+      fetch("/api/subscription/status", { cache: "no-store" })
+        .then(async (response) => response.ok ? response.json() as Promise<ProductAccess> : null)
+        .then((next) => { if (active && next) setAccess(next); })
+        .catch(() => undefined);
+    };
+    refreshAccess();
+    window.addEventListener("focus", refreshAccess);
+    return () => { active = false; window.removeEventListener("focus", refreshAccess); };
+  }, [backend.authenticated, pathname]);
 
   useEffect(() => {
     const local = loadAssessmentHandoff();
