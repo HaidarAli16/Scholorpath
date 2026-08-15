@@ -6,6 +6,7 @@ import { ProductApp } from "@/components/product/product-app";
 import { canAccessAdmin, canAccessOperations, requiresStudentSession, type AppRole } from "@/lib/auth/access";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { loadProductBootstrap, type ProductBootstrap } from "@/lib/product/server-bootstrap";
 import type { ProductAccess } from "@/lib/product/entitlements";
 
@@ -53,9 +54,10 @@ export default async function PlatformRoute({ params }: { params: Promise<{ slug
     if (needsAccount && !user) redirect(`/auth?next=${encodeURIComponent(pathname)}`);
 
     if (user) {
+      const admin = createSupabaseAdminClient();
       const [loadedBootstrap, entitlementResult, rolesResult] = await Promise.all([
         loadProductBootstrap(supabase!, user, activeModule),
-        supabase!.from("subscription_entitlements").select("plan_code,status,current_period_end").eq("user_id", user.id).maybeSingle(),
+        (admin ?? supabase!).from("subscription_entitlements").select("plan_code,status,current_period_end").eq("user_id", user.id).maybeSingle(),
         supabase!.from("user_roles").select("role").eq("user_id", user.id),
       ]);
       bootstrap = loadedBootstrap;

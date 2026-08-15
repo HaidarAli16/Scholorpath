@@ -256,10 +256,10 @@ function StudentProductApp({ module, viewerRoles = [], initialAccess = { plan: "
           {!showSubscriptionGate && module === "offers" && <Offers />}
           {module === "profile" && <StudentProfileCenter />}
           {!showSubscriptionGate && module === "opportunity" && <OpportunityDetail id={pathname.split("/").pop() || ""} opportunity={opportunityItems.find((item) => item.id === pathname.split("/").pop())} />}
-          {module === "settings" && <SettingsCenter />}
-          {module === "settings-notifications" && <SettingsCenter section="notifications" />}
-          {module === "settings-privacy" && <SettingsCenter section="privacy" />}
-          {module === "settings-plan" && <SettingsCenter section="plan" />}
+          {module === "settings" && <SettingsCenter access={access} />}
+          {module === "settings-notifications" && <SettingsCenter access={access} section="notifications" />}
+          {module === "settings-privacy" && <SettingsCenter access={access} section="privacy" />}
+          {module === "settings-plan" && <SettingsCenter access={access} section="plan" />}
           {module === "notifications" && <Notifications />}
           {module === "help" && <Help />}
           {module === "operations" && <Operations />}
